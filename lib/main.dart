@@ -1,39 +1,44 @@
 /// Application entry point and root widget
-/// 
+///
 /// This file contains:
 /// - Application initialization (dependency injection, orientation)
 /// - Root app widget with theme, routing, and providers
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// TODO: Uncomment when flutter_bloc package is added
-// import 'package:flutter_bloc/flutter_bloc.dart';
-// TODO: Uncomment when go_router is set up
-// import 'core/router/app_router.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'core/theme/app_theme.dart';
 import 'injection/service_locator.dart';
-// TODO: Import BLoC providers once they are created
-// import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/pages/auth_gate_page.dart';
+import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/pages/profile_page.dart';
+import 'features/auth/presentation/pages/signup_page.dart';
+import 'features/dashboard/presentation/pages/driver_dashboard_page.dart';
+import 'features/services/presentation/pages/service_locator_page.dart';
+import 'features/services/presentation/pages/service_locator_page_wrapper.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Set preferred orientations (optional)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   // Initialize dependency injection
   await setupServiceLocator();
-  
+
   // Run the app
   runApp(const App());
 }
 
 /// Root application widget
-/// 
+///
 /// This widget sets up:
 /// - Theme (light and dark)
 /// - Routing (when GoRouter is configured)
@@ -46,31 +51,31 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     // TODO: Use MaterialApp.router when go_router is set up
     // return MaterialApp.router(
-    return MaterialApp(
-      title: 'Driver Assistance',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      // routerConfig: AppRouter.router,
-      home: const Scaffold(
-        body: Center(
-          child: Text('Driver Assistance App\n\nSetup in progress...'),
-        ),
+    return BlocProvider<AuthBloc>(
+      create: (_) => getIt<AuthBloc>(),
+      child: MaterialApp(
+        title: 'Driver Assistance',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const AuthGatePage(),
+          '/login': (context) => const LoginPage(),
+          '/signup': (context) => const SignupPage(),
+          '/profile': (context) => const ProfilePage(),
+          '/driver-dashboard': (context) => const DriverDashboardPage(),
+          '/services': (context) => const ServiceLocatorPage(),
+          '/services/map': (context) {
+            final args = ModalRoute.of(context)?.settings.arguments;
+            final initialCenterId = args is String ? args : null;
+            return ServiceLocatorPageWrapper(
+              initialCenterId: initialCenterId,
+            );
+          },
+        },
       ),
-      
-      // TODO: Add global BLoC providers
-      // builder: (context, child) {
-      //   return MultiBlocProvider(
-      //     providers: [
-      //       BlocProvider<AuthBloc>(
-      //         create: (context) => getIt<AuthBloc>(),
-      //       ),
-      //       // Add more BLoC providers here
-      //     ],
-      //     child: child!,
-      //   );
-      // },
     );
   }
 }

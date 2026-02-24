@@ -2,6 +2,7 @@
 /// 
 /// All route names used in the application should be defined here.
 /// Use these constants instead of hardcoded route strings.
+library;
 
 class RouteNames {
   // Authentication Routes

@@ -13,6 +13,13 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
+        // Alternative repositories as fallback
+        maven {
+            url = uri("https://repo1.maven.org/maven2/")
+        }
+        maven {
+            url = uri("https://jcenter.bintray.com/")
+        }
         gradlePluginPortal()
     }
 }

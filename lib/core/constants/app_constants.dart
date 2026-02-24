@@ -2,6 +2,7 @@
 /// 
 /// This file contains all general constants used throughout the application.
 /// DO NOT hardcode values in UI - use constants from this file and related constant files.
+library;
 
 class AppConstants {
   // App Information
