@@ -1,6 +1,7 @@
 /// Duration constants for animations and timing
 /// 
 /// All duration values used in the application should be defined here.
+library;
 
 class Durations {
   // Short durations

@@ -2,6 +2,7 @@
 /// 
 /// All font sizes used in the application should be defined here.
 /// DO NOT hardcode font sizes in widgets.
+library;
 
 class FontSizes {
   // Display Sizes

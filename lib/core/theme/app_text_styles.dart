@@ -2,6 +2,7 @@
 /// 
 /// All text styles used in the application should be defined here.
 /// Use these styles instead of creating TextStyle objects directly in widgets.
+library;
 
 import 'package:flutter/material.dart';
 import '../constants/font_sizes.dart';

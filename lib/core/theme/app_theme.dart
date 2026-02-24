@@ -1,6 +1,7 @@
 /// Application theme configuration
-/// 
+///
 /// This file contains the light and dark theme configurations for the application.
+library;
 
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
@@ -16,15 +17,13 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.surface,
-        background: AppColors.background,
         error: AppColors.error,
         onPrimary: AppColors.textOnPrimary,
         onSecondary: AppColors.textOnPrimary,
         onSurface: AppColors.textPrimary,
-        onBackground: AppColors.textPrimary,
         onError: AppColors.textOnPrimary,
       ),
-      
+
       // Text Theme
       textTheme: TextTheme(
         displayLarge: AppTextStyles.displayLarge,
@@ -43,7 +42,7 @@ class AppTheme {
         labelMedium: AppTextStyles.labelMedium,
         labelSmall: AppTextStyles.labelSmall,
       ),
-      
+
       // AppBar Theme
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.primary,
@@ -54,7 +53,7 @@ class AppTheme {
           color: AppColors.textOnPrimary,
         ),
       ),
-      
+
       // Card Theme
       cardTheme: CardThemeData(
         color: AppColors.surface,
@@ -64,7 +63,7 @@ class AppTheme {
         ),
         margin: const EdgeInsets.all(Spacing.sm),
       ),
-      
+
       // Button Themes
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -80,11 +79,12 @@ class AppTheme {
           textStyle: AppTextStyles.buttonMedium,
         ),
       ),
-      
+
       // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
+        hintStyle: TextStyle(color: AppColors.textDisabled),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BorderRadiusValues.input),
           borderSide: const BorderSide(color: AppColors.border),
@@ -103,7 +103,7 @@ class AppTheme {
         ),
         contentPadding: const EdgeInsets.all(Spacing.md),
       ),
-      
+
       // Divider Theme
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,
@@ -112,7 +112,7 @@ class AppTheme {
       ),
     );
   }
-  
+
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
@@ -120,18 +120,15 @@ class AppTheme {
         primary: AppColors.primaryLight,
         secondary: AppColors.secondaryLight,
         surface: AppColors.surfaceDark,
-        background: AppColors.surfaceDark,
         error: AppColors.error,
         onPrimary: AppColors.textPrimary,
         onSecondary: AppColors.textPrimary,
         onSurface: AppColors.textOnPrimary,
-        onBackground: AppColors.textOnPrimary,
         onError: AppColors.textOnPrimary,
       ),
-      
+
       // TODO: Add dark theme text styles and other configurations
       // Similar structure to light theme but with dark colors
     );
   }
 }
-
