@@ -107,7 +107,11 @@ lib/
    - Uncomment DI code in `lib/injection/service_locator.dart`
    - Register your dependencies as you build features
 
-4. **Start Development**
+4. **API keys (do not commit)**
+   - **iOS (Google Maps):** Set your key in `ios/Runner/Info.plist` under the key `GOOGLE_MAPS_API_KEY`, or use a separate `Secrets.xcconfig` (gitignored) and reference it from the project.
+   - **Android:** If using Google Maps, add the API key via `android/app/src/main/AndroidManifest.xml` using a build variable or local properties; keep the key out of version control.
+
+5. **Start Development**
    - Begin with the authentication feature
    - Follow the feature development workflow in `docs/ARCHITECTURE.md`
 
