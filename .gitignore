@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# API keys and secrets (never commit)
+.env
+.env.*
+.env.local
+Secrets/
+**/Secrets.xcconfig
+**/ApiKeys.xcconfig
