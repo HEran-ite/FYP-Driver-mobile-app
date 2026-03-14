@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/theme/app_theme.dart';
 import 'injection/service_locator.dart';
@@ -25,10 +26,11 @@ import 'features/vehicles/presentation/pages/vehicle_detail_page.dart';
 import 'features/vehicles/presentation/pages/vehicles_list_page.dart';
 
 void main() async {
-  // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set preferred orientations (optional)
+  // Load .env so GOOGLE_MAPS_API_KEY etc. are available (do not commit .env)
+  await dotenv.load(fileName: '.env');
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

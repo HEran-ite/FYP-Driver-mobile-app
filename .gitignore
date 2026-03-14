@@ -48,6 +48,7 @@ app.*.map.json
 .env
 .env.*
 .env.local
+android/local.properties
 Secrets/
 **/Secrets.xcconfig
 **/ApiKeys.xcconfig

@@ -5,10 +5,10 @@
         android:label="driver"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <!-- Google Maps API key (required for google_maps_flutter) -->
+        <!-- Injected from .env via local.properties (run scripts/inject_api_key.sh) -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="REPLACED_BY_ENV" />
+            android:value="${GOOGLE_MAPS_API_KEY}" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
