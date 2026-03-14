@@ -1,14 +1,14 @@
 /// Google Maps API configuration.
 ///
-/// Uses GOOGLE_MAPS_API_KEY from --dart-define if set; otherwise uses the default below.
-/// For production, consider using --dart-define or a backend proxy to avoid exposing the key.
+/// Reads GOOGLE_MAPS_API_KEY from .env at runtime (no key in source).
+/// Run ./scripts/inject_api_key.sh so iOS/Android native Maps SDK get the key from .env.
 library;
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class MapsConfig {
-  static const String apiKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
-    defaultValue: 'REPLACED_BY_ENV',
-  );
+  /// From .env (loaded in main); empty if not set.
+  static String get apiKey => dotenv.env['GOOGLE_MAPS_API_KEY']?.trim() ?? '';
 
   static const String directionsBaseUrl =
       'https://maps.googleapis.com/maps/api/directions/json';

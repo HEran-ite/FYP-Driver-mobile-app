@@ -24,8 +24,9 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- Replaced from .env by: ./scripts/inject_api_key.sh (do not commit a real key) -->
 	<key>GOOGLE_MAPS_API_KEY</key>
-	<string>REPLACED_BY_ENV</string>
+	<string>REPLACE_BY_INJECT_SCRIPT</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
