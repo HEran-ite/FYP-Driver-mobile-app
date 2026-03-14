@@ -76,12 +76,13 @@ class _SignupPageState extends State<SignupPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.background,
           elevation: 0,
+          scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+            icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
@@ -97,156 +98,157 @@ class _SignupPageState extends State<SignupPage> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _LogoSection(),
+                    const _LogoSection(),
                     const SizedBox(height: Spacing.lg),
                     Text(
                       'Create Account',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.headlineMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppTextStyles.headlineMedium.copyWith(color: AppColors.textPrimary),
                     ),
                     const SizedBox(height: Spacing.xs),
                     Text(
                       'Sign up to get started with CarCare',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.bodySmall,
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: Spacing.xl),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    Container(
+                      padding: const EdgeInsets.all(Spacing.lg),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.shadow,
+                            blurRadius: 20,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
                             children: [
-                              Text('First Name',
-                                  style: AppTextStyles.labelMedium),
-                              const SizedBox(height: Spacing.xs),
-                              TextField(
-                                controller: _firstNameController,
-                                enabled: !isLoading,
-                                decoration: const InputDecoration(
-                                  hintText: 'John',
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('First Name', style: AppTextStyles.labelMedium),
+                                    const SizedBox(height: Spacing.xs),
+                                    TextField(
+                                      controller: _firstNameController,
+                                      enabled: !isLoading,
+                                      decoration: const InputDecoration(hintText: 'John'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: Spacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Last Name', style: AppTextStyles.labelMedium),
+                                    const SizedBox(height: Spacing.xs),
+                                    TextField(
+                                      controller: _lastNameController,
+                                      enabled: !isLoading,
+                                      decoration: const InputDecoration(hintText: 'Doe'),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: Spacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Last Name',
-                                  style: AppTextStyles.labelMedium),
-                              const SizedBox(height: Spacing.xs),
-                              TextField(
-                                controller: _lastNameController,
-                                enabled: !isLoading,
-                                decoration: const InputDecoration(
-                                  hintText: 'Doe',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: Spacing.lg),
-                    Text('Email', style: AppTextStyles.labelMedium),
-                    const SizedBox(height: Spacing.xs),
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      enabled: !isLoading,
-                      decoration: const InputDecoration(
-                        hintText: 'you@example.com',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
-                    ),
-                    const SizedBox(height: Spacing.lg),
-                    Text('Phone Number', style: AppTextStyles.labelMedium),
-                    const SizedBox(height: Spacing.xs),
-                    TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      enabled: !isLoading,
-                      decoration: const InputDecoration(
-                        hintText: '+1 (555) 000-0000',
-                        prefixIcon: Icon(Icons.phone_outlined),
-                      ),
-                    ),
-                    const SizedBox(height: Spacing.lg),
-                    Text('Password', style: AppTextStyles.labelMedium),
-                    const SizedBox(height: Spacing.xs),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      enabled: !isLoading,
-                      decoration: InputDecoration(
-                        hintText: 'At least 8 characters',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: Spacing.lg),
-                    Text('Confirm Password',
-                        style: AppTextStyles.labelMedium),
-                    const SizedBox(height: Spacing.xs),
-                    TextField(
-                      controller: _confirmPasswordController,
-                      obscureText: _obscureConfirm,
-                      enabled: !isLoading,
-                      decoration: InputDecoration(
-                        hintText: 'Re-enter your password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscureConfirm
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined),
-                          onPressed: () =>
-                              setState(() => _obscureConfirm = !_obscureConfirm),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: Spacing.xl),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.secondary,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: Spacing.md,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              BorderRadiusValues.button,
+                          const SizedBox(height: Spacing.lg),
+                          Text('Email', style: AppTextStyles.labelMedium),
+                          const SizedBox(height: Spacing.xs),
+                          TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            enabled: !isLoading,
+                            decoration: const InputDecoration(
+                              hintText: 'you@example.com',
+                              prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSecondary),
                             ),
                           ),
-                        ),
-                        child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.secondary,
+                          const SizedBox(height: Spacing.lg),
+                          Text('Phone Number', style: AppTextStyles.labelMedium),
+                          const SizedBox(height: Spacing.xs),
+                          TextField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            enabled: !isLoading,
+                            decoration: const InputDecoration(
+                              hintText: '+1 (555) 000-0000',
+                              prefixIcon: Icon(Icons.phone_outlined, color: AppColors.textSecondary),
+                            ),
+                          ),
+                          const SizedBox(height: Spacing.lg),
+                          Text('Password', style: AppTextStyles.labelMedium),
+                          const SizedBox(height: Spacing.xs),
+                          TextField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            enabled: !isLoading,
+                            decoration: InputDecoration(
+                              hintText: 'At least 8 characters',
+                              prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  color: AppColors.textSecondary,
                                 ),
-                              )
-                            : Text(
-                                'Create Account',
-                                style: AppTextStyles.buttonMedium.copyWith(
-                                  color: AppColors.secondary,
+                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: Spacing.lg),
+                          Text('Confirm Password', style: AppTextStyles.labelMedium),
+                          const SizedBox(height: Spacing.xs),
+                          TextField(
+                            controller: _confirmPasswordController,
+                            obscureText: _obscureConfirm,
+                            enabled: !isLoading,
+                            decoration: InputDecoration(
+                              hintText: 'Re-enter your password',
+                              prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  color: AppColors.textSecondary,
+                                ),
+                                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: Spacing.lg),
+                          SizedBox(
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: isLoading ? null : _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: AppColors.secondary,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
                                 ),
                               ),
+                              child: isLoading
+                                  ? const SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.secondary,
+                                      ),
+                                    )
+                                  : const Text('Create Account'),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -261,32 +263,30 @@ class _SignupPageState extends State<SignupPage> {
 }
 
 class _LogoSection extends StatelessWidget {
+  const _LogoSection();
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: Dimensions.logoSize,
-          height: Dimensions.logoSize,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(BorderRadiusValues.xxl),
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.shadow,
-                blurRadius: 16,
-                offset: Offset(0, 8),
-              ),
-            ],
+    return Container(
+      width: Dimensions.logoSize,
+      height: Dimensions.logoSize,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(BorderRadiusValues.xxl),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
-          alignment: Alignment.center,
-          child: const Icon(
-            Icons.directions_car_filled_outlined,
-            size: 56,
-            color: Colors.black,
-          ),
-        ),
-      ],
+        ],
+      ),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.directions_car_rounded,
+        size: 56,
+        color: AppColors.secondary,
+      ),
     );
   }
 }

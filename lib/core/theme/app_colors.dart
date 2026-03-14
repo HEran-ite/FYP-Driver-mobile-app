@@ -24,15 +24,15 @@ class AppColors {
   static const Color info = primary;
   
   // Background Colors
-  static const Color background = Color(0xFFF5F5F5);
+  static const Color background = Color(0xFFF8FAFC);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceDark = Color(0xFF1E1E1E);
   static const Color surfaceMuted = Color(0xFFF1F5F9);
   
   // Text Colors
-  static const Color textPrimary = Color(0xFF212121);
-  static const Color textSecondary = Color(0xFF757575);
-  static const Color textDisabled = Color(0xFFBDBDBD);
+  static const Color textPrimary = Color(0xFF0F172A);
+  static const Color textSecondary = Color(0xFF64748B);
+  static const Color textDisabled = Color(0xFF94A3B8);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
   
   // Status Colors
@@ -42,15 +42,27 @@ class AppColors {
   static const Color infoStatus = Color(0xFF2196F3);
   
   // Border Colors
-  static const Color border = Color(0xFFE0E0E0);
+  static const Color border = Color(0xFFE2E8F0);
   static const Color borderDark = Color(0xFF424242);
   
   // Divider Colors
-  static const Color divider = Color(0xFFE0E0E0);
+  static const Color divider = Color(0xFFE2E8F0);
   
-  // Shadow Colors
-  static const Color shadow = Color(0x1A000000);
-  
+  // Shadow Colors (softer for sleek look)
+  static const Color shadow = Color(0x0D000000);
+  static const Color shadowMedium = Color(0x15000000);
+  static const Color shadowStrong = Color(0x1A000000);
+
+  // Map screen (dark Google Maps–style UI)
+  static const Color mapBarBackground = Color(0xFF2D2D2D);
+  static const Color mapTeal = Color(0xFF00BFA5);
+  static const Color mapChipBackground = Color(0xFF3D3D3D);
+  static const Color mapNavBackground = Color(0xFF1F1F1F);
+  static const Color mapSearchBackground = Color(0xFF383838);
+  static const Color mapSheetBackground = Color(0xFF2D2D2D);
+  static const Color mapTextOnDark = Color(0xFFFFFFFF);
+  static const Color mapTextMuted = Color(0xFFB0B0B0);
+
   // Private constructor to prevent instantiation
   AppColors._();
 }

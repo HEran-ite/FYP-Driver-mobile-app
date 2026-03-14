@@ -54,54 +54,58 @@ class AppTheme {
         ),
       ),
 
-      // Card Theme
+      // Card Theme (sleek: soft shadow, rounded)
       cardTheme: CardThemeData(
         color: AppColors.surface,
-        elevation: 2,
+        elevation: 0,
+        shadowColor: AppColors.shadow,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BorderRadiusValues.card),
+          borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
         ),
         margin: const EdgeInsets.all(Spacing.sm),
       ),
 
-      // Button Themes
+      // Button Themes (sleek: pill-friendly radius)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.textOnPrimary,
+          foregroundColor: AppColors.secondary,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(
             horizontal: Spacing.lg,
             vertical: Spacing.md,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BorderRadiusValues.button),
+            borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
           ),
-          textStyle: AppTextStyles.buttonMedium,
+          textStyle: AppTextStyles.buttonMedium.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
 
-      // Input Decoration Theme
+      // Input Decoration Theme (sleek: subtle border, more radius)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        hintStyle: TextStyle(color: AppColors.textDisabled),
+        hintStyle: TextStyle(color: AppColors.textDisabled, fontWeight: FontWeight.w400),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(BorderRadiusValues.input),
+          borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(BorderRadiusValues.input),
+          borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(BorderRadiusValues.input),
+          borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(BorderRadiusValues.input),
+          borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
           borderSide: const BorderSide(color: AppColors.error),
         ),
-        contentPadding: const EdgeInsets.all(Spacing.md),
+        contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.md),
       ),
 
       // Divider Theme
