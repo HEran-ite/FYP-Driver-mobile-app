@@ -31,48 +31,48 @@ class AppTextStyles {
     letterSpacing: 0,
   );
   
-  // Headline Styles
+  // Headline Styles (sleek: slightly tighter)
   static TextStyle headlineLarge = TextStyle(
     fontSize: FontSizes.headlineLarge,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
-    letterSpacing: 0,
+    letterSpacing: -0.25,
   );
   
   static TextStyle headlineMedium = TextStyle(
     fontSize: FontSizes.headlineMedium,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
-    letterSpacing: 0.15,
+    letterSpacing: 0,
   );
   
   static TextStyle headlineSmall = TextStyle(
     fontSize: FontSizes.headlineSmall,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
-    letterSpacing: 0.15,
+    letterSpacing: 0,
   );
   
   // Title Styles
   static TextStyle titleLarge = TextStyle(
     fontSize: FontSizes.titleLarge,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
-    letterSpacing: 0.15,
+    letterSpacing: 0,
   );
   
   static TextStyle titleMedium = TextStyle(
     fontSize: FontSizes.titleMedium,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
-    letterSpacing: 0.1,
+    letterSpacing: 0,
   );
   
   static TextStyle titleSmall = TextStyle(
     fontSize: FontSizes.titleSmall,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
-    letterSpacing: 0.1,
+    letterSpacing: 0,
   );
   
   // Body Styles

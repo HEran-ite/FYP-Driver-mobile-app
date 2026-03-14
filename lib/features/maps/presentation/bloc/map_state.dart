@@ -10,6 +10,8 @@ class MapState extends Equatable {
     this.locationResolved = false,
     this.locationPermissionDenied = false,
     this.liveTracking = false,
+    this.customOriginLatLng,
+    this.customOriginName,
   });
 
   final LatLng? userLocation;
@@ -17,6 +19,15 @@ class MapState extends Equatable {
   final bool locationResolved;
   final bool locationPermissionDenied;
   final bool liveTracking;
+  /// Custom start for navigation; null means use [userLocation].
+  final LatLng? customOriginLatLng;
+  final String? customOriginName;
+
+  /// Origin to use for directions: custom if set, otherwise user location.
+  LatLng? get effectiveOrigin => customOriginLatLng ?? userLocation;
+
+  /// True when user has set a custom start (so we show "Use my location" option).
+  bool get hasCustomOrigin => customOriginLatLng != null;
 
   MapState copyWith({
     LatLng? userLocation,
@@ -25,6 +36,9 @@ class MapState extends Equatable {
     bool? locationResolved,
     bool? locationPermissionDenied,
     bool? liveTracking,
+    LatLng? customOriginLatLng,
+    String? customOriginName,
+    bool clearCustomOrigin = false,
   }) {
     return MapState(
       userLocation: clearUserLocation ? null : (userLocation ?? this.userLocation),
@@ -33,6 +47,8 @@ class MapState extends Equatable {
       locationPermissionDenied:
           locationPermissionDenied ?? this.locationPermissionDenied,
       liveTracking: liveTracking ?? this.liveTracking,
+      customOriginLatLng: clearCustomOrigin ? null : (customOriginLatLng ?? this.customOriginLatLng),
+      customOriginName: clearCustomOrigin ? null : (customOriginName ?? this.customOriginName),
     );
   }
 
@@ -44,5 +60,8 @@ class MapState extends Equatable {
         locationResolved,
         locationPermissionDenied,
         liveTracking,
+        customOriginLatLng?.latitude,
+        customOriginLatLng?.longitude,
+        customOriginName,
       ];
 }

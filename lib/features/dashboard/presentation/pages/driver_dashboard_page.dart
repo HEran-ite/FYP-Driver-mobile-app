@@ -39,11 +39,24 @@ class DriverDashboardPage extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: const _BottomNavBar(),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        shape: const CircleBorder(),
-        onPressed: () {},
-        child: const ImageIcon(AssetImage('assets/images/ai_icon.png')),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadowMedium,
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          backgroundColor: AppColors.primary,
+          elevation: 0,
+          shape: const CircleBorder(),
+          onPressed: () {},
+          child: const ImageIcon(AssetImage('assets/images/ai_icon.png')),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
@@ -51,31 +64,33 @@ class DriverDashboardPage extends StatelessWidget {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       elevation: 0,
+      scrolledUnderElevation: 0,
       title: Text(
         'CarCare',
-        style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w600),
+        style: AppTextStyles.titleMedium.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       centerTitle: false,
       leading: Builder(
         builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black),
+          icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary),
           onPressed: () => Scaffold.of(ctx).openDrawer(),
         ),
       ),
       actions: [
         IconButton(
-          icon: const Icon(
-            Icons.notifications_none_outlined,
-            color: Colors.black,
-          ),
+          icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary),
           onPressed: () {},
         ),
         const SizedBox(width: Spacing.xs),
-        const CircleAvatar(
+        CircleAvatar(
           radius: Dimensions.profileAvatarRadius,
-          backgroundImage: AssetImage('assets/avatar_placeholder.png'),
+          backgroundColor: AppColors.surfaceMuted,
+          child: const Icon(Icons.person_rounded, color: AppColors.textSecondary),
         ),
         const SizedBox(width: Spacing.md),
       ],
@@ -91,13 +106,13 @@ class _VehicleCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
-            blurRadius: 16,
-            offset: Offset(0, 10),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -111,7 +126,7 @@ class _VehicleCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
             ),
             child: const Icon(
-              Icons.directions_car_filled,
+              Icons.directions_car_rounded,
               color: Colors.white,
               size: Dimensions.vehicleIconSize,
             ),
@@ -124,18 +139,15 @@ class _VehicleCard extends StatelessWidget {
                 Text(
                   'Honda Civic 2020',
                   style: AppTextStyles.titleMedium.copyWith(
-                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: Spacing.xs),
-                Text('ABC-123', style: AppTextStyles.bodySmall),
+                Text('ABC-123', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
               ],
             ),
           ),
-          const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.textSecondary,
-          ),
+          const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
         ],
       ),
     );
@@ -150,17 +162,22 @@ class _VehicleHealthSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Vehicle Health',
-            style: AppTextStyles.titleSmall.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary),
           ),
           const SizedBox(height: Spacing.md),
           Row(
@@ -246,7 +263,7 @@ class _MaintenanceRemindersSection extends StatelessWidget {
       children: [
         Text(
           'Maintenance Reminders',
-          style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary),
         ),
         const SizedBox(height: Spacing.md),
         const _ReminderCard(
@@ -302,13 +319,20 @@ class _ReminderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: borderColor.withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(icon, color: statusColor),
+          Icon(icon, color: statusColor, size: 22),
           const SizedBox(width: Spacing.md),
           Expanded(
             child: Column(
@@ -318,10 +342,11 @@ class _ReminderCard extends StatelessWidget {
                   title,
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: Spacing.xs),
-                Text(subtitle, style: AppTextStyles.bodySmall),
+                Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
               ],
             ),
           ),
@@ -337,7 +362,7 @@ class _ReminderCard extends StatelessWidget {
             child: Text(
               statusLabel,
               style: AppTextStyles.labelSmall.copyWith(
-                color: Colors.white,
+                color: AppColors.textOnPrimary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -358,7 +383,7 @@ class _QuickActionsSection extends StatelessWidget {
       children: [
         Text(
           'Quick Actions',
-          style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary),
         ),
         const SizedBox(height: Spacing.md),
         Column(
@@ -402,6 +427,13 @@ class _PrimaryActionButton extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: gradientColors),
         borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowMedium,
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -415,19 +447,19 @@ class _PrimaryActionButton extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(icon, color: Colors.white),
+                Icon(icon, color: AppColors.textOnPrimary),
                 const SizedBox(width: Spacing.md),
                 Expanded(
                   child: Text(
                     label,
                     style: AppTextStyles.buttonMedium.copyWith(
-                      color: Colors.white,
+                      color: AppColors.textOnPrimary,
                     ),
                   ),
                 ),
                 const Icon(
                   Icons.arrow_forward_ios_rounded,
-                  color: Colors.white,
+                  color: AppColors.textOnPrimary,
                   size: 18,
                 ),
               ],
@@ -449,9 +481,16 @@ class _OutlinedActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -465,19 +504,17 @@ class _OutlinedActionButton extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(icon, color: Colors.black),
+                Icon(icon, color: AppColors.textPrimary),
                 const SizedBox(width: Spacing.md),
                 Expanded(
                   child: Text(
                     label,
-                    style: AppTextStyles.buttonMedium.copyWith(
-                      color: Colors.black,
-                    ),
+                    style: AppTextStyles.buttonMedium.copyWith(color: AppColors.textPrimary),
                   ),
                 ),
                 const Icon(
                   Icons.arrow_forward_ios_rounded,
-                  color: Colors.black,
+                  color: AppColors.textSecondary,
                   size: 18,
                 ),
               ],
@@ -514,19 +551,17 @@ class _FilledActionButton extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(icon, color: Colors.black),
+                Icon(icon, color: AppColors.secondary),
                 const SizedBox(width: Spacing.md),
                 Expanded(
                   child: Text(
                     label,
-                    style: AppTextStyles.buttonMedium.copyWith(
-                      color: Colors.black,
-                    ),
+                    style: AppTextStyles.buttonMedium.copyWith(color: AppColors.secondary),
                   ),
                 ),
                 const Icon(
                   Icons.arrow_forward_ios_rounded,
-                  color: Colors.black,
+                  color: AppColors.secondary,
                   size: 18,
                 ),
               ],
@@ -548,14 +583,21 @@ class _RecentActivitySection extends StatelessWidget {
       children: [
         Text(
           'Recent Activity',
-          style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary),
         ),
         const SizedBox(height: Spacing.md),
         Container(
           padding: const EdgeInsets.all(Spacing.md),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadow,
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             children: const [
@@ -613,10 +655,11 @@ class _ActivityRow extends StatelessWidget {
               title,
               style: AppTextStyles.bodyMedium.copyWith(
                 fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: Spacing.xs),
-            Text(subtitle, style: AppTextStyles.bodySmall),
+            Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
           ],
         ),
       ],
@@ -632,7 +675,8 @@ class _BottomNavBar extends StatelessWidget {
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
-      color: Colors.white,
+      color: AppColors.surface,
+      elevation: 0,
       child: SizedBox(
         height: Dimensions.bottomNavHeight,
         child: Padding(
@@ -643,14 +687,19 @@ class _BottomNavBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const _BottomNavItem(
+              _BottomNavItem(
                 icon: Icons.home_filled,
                 label: 'Home',
                 isActive: true,
+                onTap: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/driver-dashboard',
+                  (route) => route.isFirst,
+                ),
               ),
-              const _BottomNavItem(
+              _BottomNavItem(
                 icon: Icons.directions_car_filled,
                 label: 'Vehicles',
+                onTap: () => Navigator.of(context).pushNamed('/vehicles'),
               ),
               _BottomNavItem(
                 icon: Icons.handyman_outlined,
@@ -690,7 +739,7 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? Colors.black : AppColors.textSecondary;
+    final color = isActive ? AppColors.textPrimary : AppColors.textSecondary;
     return InkWell(
       onTap: onTap,
       child: Column(

@@ -31,6 +31,11 @@ class SelectServiceCenter extends ServiceLocatorEvent {
   List<Object?> get props => [centerId];
 }
 
+/// Clear selected garage (e.g. when closing the info bottom sheet).
+class ClearSelectedCenter extends ServiceLocatorEvent {
+  const ClearSelectedCenter();
+}
+
 class UpdateVisibleCenters extends ServiceLocatorEvent {
   final List<String> visibleCenterIds;
 

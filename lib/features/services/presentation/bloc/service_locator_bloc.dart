@@ -2,21 +2,22 @@ library;
 
 import 'package:bloc/bloc.dart';
 
+import '../../application/usecases/get_nearby_garages_usecase.dart';
 import '../../domain/errors/service_locator_failure.dart';
-import '../../domain/repositories/service_locator_repository.dart';
 import 'service_locator_event.dart';
 import 'service_locator_state.dart';
 
 class ServiceLocatorBloc
     extends Bloc<ServiceLocatorEvent, ServiceLocatorState> {
-  ServiceLocatorBloc(this._repository) : super(ServiceLocatorState.initial()) {
+  ServiceLocatorBloc(this._getNearbyGarages) : super(ServiceLocatorState.initial()) {
     on<InitializeServiceLocator>(_onInitialize);
     on<LoadNearbyGarages>(_onLoadNearbyGarages);
     on<SelectServiceCenter>(_onSelectCenter);
+    on<ClearSelectedCenter>(_onClearSelectedCenter);
     on<UpdateVisibleCenters>(_onUpdateVisibleCenters);
   }
 
-  final ServiceLocatorRepository _repository;
+  final GetNearbyGaragesUseCase _getNearbyGarages;
 
   Future<void> _onInitialize(
     InitializeServiceLocator event,
@@ -39,7 +40,7 @@ class ServiceLocatorBloc
   ) async {
     emit(state.copyWith(isLoading: true, failureMessage: null));
     try {
-      final centers = await _repository.getNearbyGarages(
+      final centers = await _getNearbyGarages(
         latitude: lat,
         longitude: lng,
       );
@@ -74,6 +75,13 @@ class ServiceLocatorBloc
     Emitter<ServiceLocatorState> emit,
   ) {
     emit(state.copyWith(selectedCenterId: event.centerId));
+  }
+
+  void _onClearSelectedCenter(
+    ClearSelectedCenter event,
+    Emitter<ServiceLocatorState> emit,
+  ) {
+    emit(state.copyWith(clearSelectedCenter: true));
   }
 
   void _onUpdateVisibleCenters(

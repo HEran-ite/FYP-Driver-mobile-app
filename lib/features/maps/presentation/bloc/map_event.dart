@@ -49,3 +49,19 @@ class MapLiveTrackingToggled extends MapEvent {
   @override
   List<Object?> get props => [enabled];
 }
+
+/// Set a custom start location for navigation (overrides user location as origin).
+class MapCustomOriginSet extends MapEvent {
+  const MapCustomOriginSet({required this.position, required this.displayName});
+
+  final LatLng position;
+  final String displayName;
+
+  @override
+  List<Object?> get props => [position.latitude, position.longitude, displayName];
+}
+
+/// Clear custom start; navigation will use user's current location again.
+class MapCustomOriginCleared extends MapEvent {
+  const MapCustomOriginCleared();
+}

@@ -26,7 +26,8 @@ class ServiceLocatorPage extends StatelessWidget {
       providers: [
         BlocProvider(
           create: (_) =>
-              getIt<ServiceLocatorBloc>()..add(const InitializeServiceLocator()),
+              getIt<ServiceLocatorBloc>()
+                ..add(const InitializeServiceLocator()),
         ),
         BlocProvider(
           create: (_) =>
@@ -48,55 +49,81 @@ class _ServiceLocatorView extends StatelessWidget {
       drawer: const AppDrawer(currentRoute: '/services'),
       appBar: _buildAppBar(context),
       body: SafeArea(
-        child: BlocBuilder<ServiceLocatorBloc, ServiceLocatorState>(
-          builder: (context, state) {
-            if (state.isLoading && state.centers.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state.failureMessage != null && state.centers.isEmpty) {
-              return _ServiceErrorView(
-                message: state.failureMessage!,
-                onRetry: () => context
-                    .read<ServiceLocatorBloc>()
-                    .add(const LoadNearbyGarages()),
+        child: BlocConsumer<AppointmentsBloc, AppointmentsState>(
+          listenWhen: (prev, curr) =>
+              curr is AppointmentActionSuccess || curr is AppointmentsFailure,
+          listener: (context, state) {
+            if (state is AppointmentActionSuccess) {
+              context.read<AppointmentsBloc>().add(const AppointmentsLoadRequested());
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Appointment updated.'),
+                  backgroundColor: AppColors.success,
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             }
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Spacing.lg,
-                vertical: Spacing.lg,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Service Centers',
-                    style: AppTextStyles.headlineSmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: Spacing.xs),
-                  Text(
-                    'Find nearby garages and book service',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  const SizedBox(height: Spacing.lg),
-                  _MapPreviewCard(
-                    onTap: () {
-                      Navigator.of(context).pushNamed('/services/map');
-                    },
-                  ),
-                  const SizedBox(height: Spacing.lg),
-                  const _QuickHelpRow(),
-                  const SizedBox(height: Spacing.lg),
-                  const _RecentAppointmentsSection(),
-                  const SizedBox(height: Spacing.lg),
-                  _NearbyCentersSection(centers: state.centers),
-                ],
-              ),
-            );
+            if (state is AppointmentsFailure) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: AppColors.danger,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
           },
+          builder: (context, _) => BlocBuilder<ServiceLocatorBloc, ServiceLocatorState>(
+            builder: (context, state) {
+              if (state.isLoading && state.centers.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state.failureMessage != null && state.centers.isEmpty) {
+                return _ServiceErrorView(
+                  message: state.failureMessage!,
+                  onRetry: () => context.read<ServiceLocatorBloc>().add(
+                    const LoadNearbyGarages(),
+                  ),
+                );
+              }
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.lg,
+                  vertical: Spacing.lg,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Service Centers',
+                      style: AppTextStyles.headlineSmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: Spacing.xs),
+                    Text(
+                      'Find nearby garages and book service',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: Spacing.lg),
+                    _MapPreviewCard(
+                      onTap: () {
+                        Navigator.of(context).pushNamed('/services/map');
+                      },
+                    ),
+                    const SizedBox(height: Spacing.lg),
+                    _UpcomingAppointmentsSection(centers: state.centers),
+                    const SizedBox(height: Spacing.lg),
+                    _NearbyCentersSection(centers: state.centers),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
       bottomNavigationBar: const _ServiceBottomNavBar(),
@@ -116,9 +143,12 @@ class _ServiceLocatorView extends StatelessWidget {
       elevation: 0,
       title: Text(
         'CarCare',
-        style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w600),
+        style: AppTextStyles.titleMedium.copyWith(
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
       ),
-      centerTitle: false,
+      centerTitle: true,
       leading: Builder(
         builder: (ctx) => IconButton(
           icon: const Icon(Icons.menu, color: Colors.black),
@@ -126,14 +156,44 @@ class _ServiceLocatorView extends StatelessWidget {
         ),
       ),
       actions: [
-        IconButton(
-          icon: const Icon(
-            Icons.notifications_none_outlined,
-            color: Colors.black,
-          ),
-          onPressed: () {},
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.notifications_none_outlined,
+                color: Colors.black,
+              ),
+              onPressed: () {},
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: AppColors.danger,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                child: Center(
+                  child: Text(
+                    '3',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: Spacing.md),
+        const SizedBox(width: Spacing.xs),
       ],
     );
   }
@@ -178,8 +238,10 @@ class _ServiceErrorView extends StatelessWidget {
   }
 }
 
-class _RecentAppointmentsSection extends StatelessWidget {
-  const _RecentAppointmentsSection();
+class _UpcomingAppointmentsSection extends StatelessWidget {
+  const _UpcomingAppointmentsSection({required this.centers});
+
+  final List<ServiceCenter> centers;
 
   @override
   Widget build(BuildContext context) {
@@ -197,38 +259,38 @@ class _RecentAppointmentsSection extends StatelessWidget {
             ),
           );
         }
-        if (state is AppointmentsFailure) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-            child: Text(
-              state.message,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.danger),
-            ),
-          );
+        List<Appointment> appointments;
+        if (state is AppointmentsLoaded) {
+          appointments = state.appointments;
+        } else if (state is AppointmentActionSuccess) {
+          appointments = [state.appointment];
+        } else {
+          appointments = <Appointment>[];
         }
-        final appointments = state is AppointmentsLoaded
-            ? state.appointments
-            : state is AppointmentActionSuccess
-                ? [state.appointment]
-                : <Appointment>[];
-        if (appointments.isEmpty) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Recent Appointments',
-                style: AppTextStyles.titleSmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+        final upcoming = appointments
+            .where((a) =>
+                a.status != AppointmentStatus.cancelled &&
+                a.status != AppointmentStatus.rejected &&
+                a.status != AppointmentStatus.completed)
+            .toList();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Upcoming Appointments',
+              style: AppTextStyles.titleSmall.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
-              const SizedBox(height: Spacing.md),
+            ),
+            const SizedBox(height: Spacing.md),
+            if (upcoming.isEmpty)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(Spacing.lg),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius:
-                      BorderRadius.circular(BorderRadiusValues.xl),
+                  borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
                   boxShadow: const [
                     BoxShadow(
                       color: AppColors.shadow,
@@ -239,32 +301,23 @@ class _RecentAppointmentsSection extends StatelessWidget {
                 ),
                 child: Center(
                   child: Text(
-                    'No appointments yet',
+                    'No upcoming appointments',
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
                 ),
-              ),
-            ],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recent Appointments',
-              style: AppTextStyles.titleSmall.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: Spacing.md),
-            ...appointments.take(5).map(
-                  (a) => Padding(
-                    padding: const EdgeInsets.only(bottom: Spacing.sm),
-                    child: _AppointmentCardFromEntity(appointment: a),
+              )
+            else
+              ...upcoming.take(5).map(
+                    (a) => Padding(
+                      padding: const EdgeInsets.only(bottom: Spacing.sm),
+                      child: _AppointmentCardFromEntity(
+                        appointment: a,
+                        centers: centers,
+                      ),
+                    ),
                   ),
-                ),
           ],
         );
       },
@@ -273,9 +326,21 @@ class _RecentAppointmentsSection extends StatelessWidget {
 }
 
 class _AppointmentCardFromEntity extends StatelessWidget {
-  const _AppointmentCardFromEntity({required this.appointment});
+  const _AppointmentCardFromEntity({
+    required this.appointment,
+    required this.centers,
+  });
 
   final Appointment appointment;
+  final List<ServiceCenter> centers;
+
+  String get _garageName {
+    try {
+      return centers.firstWhere((c) => c.id == appointment.garageId).name;
+    } catch (_) {
+      return 'Garage';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -310,6 +375,7 @@ class _AppointmentCardFromEntity extends StatelessWidget {
                       : 'Service',
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -320,13 +386,14 @@ class _AppointmentCardFromEntity extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: statusColor,
-                  borderRadius:
-                      BorderRadius.circular(BorderRadiusValues.circular),
+                  borderRadius: BorderRadius.circular(
+                    BorderRadiusValues.circular,
+                  ),
                 ),
                 child: Text(
                   statusLabel,
                   style: AppTextStyles.labelSmall.copyWith(
-                    color: AppColors.textOnPrimary,
+                    color: _statusTextColor(appointment.status),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -335,8 +402,10 @@ class _AppointmentCardFromEntity extends StatelessWidget {
           ),
           const SizedBox(height: Spacing.xs),
           Text(
-            'Garage ID: ${appointment.garageId}',
-            style: AppTextStyles.bodySmall,
+            _garageName,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: Spacing.sm),
           Row(
@@ -347,11 +416,39 @@ class _AppointmentCardFromEntity extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
               const SizedBox(width: Spacing.xs),
-              Text(dateStr, style: AppTextStyles.bodySmall),
+              Text(dateStr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
               const SizedBox(width: Spacing.md),
               Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
               const SizedBox(width: Spacing.xs),
-              Text(timeStr, style: AppTextStyles.bodySmall),
+              Text(timeStr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+            ],
+          ),
+          const SizedBox(height: Spacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _onReschedule(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: AppColors.textOnPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+                  ),
+                  child: const Text('Reschedule'),
+                ),
+              ),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _onCancel(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.border),
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
             ],
           ),
         ],
@@ -359,12 +456,54 @@ class _AppointmentCardFromEntity extends StatelessWidget {
     );
   }
 
+  Future<void> _onReschedule(BuildContext context) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: appointment.scheduledAt.isAfter(DateTime.now()) ? appointment.scheduledAt : DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null || !context.mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(appointment.scheduledAt),
+    );
+    if (time == null || !context.mounted) return;
+    final scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    context.read<AppointmentsBloc>().add(
+          AppointmentRescheduleRequested(id: appointment.id, scheduledAt: scheduledAt),
+        );
+  }
+
+  Future<void> _onCancel(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel appointment?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Yes', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      context.read<AppointmentsBloc>().add(AppointmentCancelRequested(appointment.id));
+    }
+  }
+
   String _statusLabel(AppointmentStatus s) {
     switch (s) {
       case AppointmentStatus.pending:
         return 'Pending';
       case AppointmentStatus.approved:
-        return 'Approved';
+        return 'Confirmed';
       case AppointmentStatus.rejected:
         return 'Rejected';
       case AppointmentStatus.inService:
@@ -373,6 +512,15 @@ class _AppointmentCardFromEntity extends StatelessWidget {
         return 'Completed';
       case AppointmentStatus.cancelled:
         return 'Cancelled';
+    }
+  }
+
+  Color _statusTextColor(AppointmentStatus s) {
+    switch (s) {
+      case AppointmentStatus.pending:
+        return AppColors.textPrimary;
+      default:
+        return AppColors.textOnPrimary;
     }
   }
 
@@ -394,7 +542,10 @@ class _AppointmentCardFromEntity extends StatelessWidget {
   }
 
   String _formatDate(DateTime d) {
-    return '${d.day}/${d.month}/${d.year}';
+    const months = 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec';
+    final parts = months.split(',');
+    final month = parts[d.month - 1];
+    return '$month ${d.day}, ${d.year}';
   }
 
   String _formatTime(DateTime d) {
@@ -490,127 +641,130 @@ class _NearbyCenterCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
-            ),
-            child: Icon(
-              Icons.garage_outlined,
-              color: AppColors.secondary,
-            ),
-          ),
-          const SizedBox(width: Spacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  center.name,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: Spacing.xs),
-                Text(
-                  center.subtitle,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: Spacing.xs),
-                Row(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.star, size: 16, color: AppColors.warning),
-                    const SizedBox(width: Spacing.xs),
                     Text(
-                      center.rating.toStringAsFixed(1),
-                      style: AppTextStyles.bodySmall,
-                    ),
-                    const SizedBox(width: Spacing.md),
-                    Text(
-                      '${center.distanceMiles.toStringAsFixed(1)} mi away',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
+                      center.name,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
                     ),
+                    const SizedBox(height: Spacing.xs),
+                    Text(
+                      center.isOpen ? 'Open' : 'Closed',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: center.isOpen ? AppColors.success : AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: Spacing.xs),
+                    Row(
+                      children: [
+                        Icon(Icons.star, size: 16, color: AppColors.warning),
+                        const SizedBox(width: Spacing.xs),
+                        Text(
+                          center.rating.toStringAsFixed(1),
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+                        ),
+                        Text(
+                          ' (${center.reviewsCount})',
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(width: Spacing.md),
+                        Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                        const SizedBox(width: Spacing.xs),
+                        Text(
+                          '${center.distanceMiles.toStringAsFixed(1)} mi',
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    if (center.services.isNotEmpty) ...[
+                      const SizedBox(height: Spacing.sm),
+                      Wrap(
+                        spacing: Spacing.xs,
+                        runSpacing: Spacing.xs,
+                        children: center.services.take(4).map((s) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: Spacing.sm,
+                              vertical: Spacing.xs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceMuted,
+                              borderRadius: BorderRadius.circular(BorderRadiusValues.sm),
+                            ),
+                            child: Text(
+                              s,
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickHelpRow extends StatelessWidget {
-  const _QuickHelpRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: _QuickHelpCard(
-            icon: Icons.warning_amber_outlined,
-            label: 'Emergency Help',
-          ),
-        ),
-        SizedBox(width: Spacing.md),
-        Expanded(
-          child: _QuickHelpCard(
-            icon: Icons.phone_in_talk_outlined,
-            label: 'Call Roadside',
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickHelpCard extends StatelessWidget {
-  const _QuickHelpCard({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(Spacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: label == 'Emergency Help'
-                ? AppColors.danger
-                : AppColors.success,
-          ),
-          const SizedBox(width: Spacing.md),
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontWeight: FontWeight.w500,
               ),
-            ),
+            ],
+          ),
+          const SizedBox(height: Spacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                  label: const Text('Book'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: AppColors.textOnPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+                  ),
+                ),
+              ),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.phone_outlined, size: 18),
+                  label: const Text('Call'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.border),
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+                  ),
+                ),
+              ),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pushNamed(
+                      '/services/map',
+                      arguments: center.id,
+                    );
+                  },
+                  icon: const Icon(Icons.near_me_outlined, size: 18),
+                  label: const Text('Route'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.border),
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -649,13 +803,14 @@ class _MapPreviewCard extends StatelessWidget {
                   Icon(
                     Icons.location_on_outlined,
                     size: 40,
-                    color: AppColors.secondary,
+                    color: AppColors.textSecondary,
                   ),
                   const SizedBox(height: Spacing.sm),
                   Text(
                     'Map View',
                     style: AppTextStyles.bodyMedium.copyWith(
                       fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -664,11 +819,26 @@ class _MapPreviewCard extends StatelessWidget {
             Positioned(
               right: Spacing.lg,
               bottom: Spacing.lg,
-              child: FloatingActionButton.small(
-                heroTag: 'mapPreviewFab',
-                backgroundColor: AppColors.primary,
-                onPressed: onTap,
-                child: Icon(Icons.near_me_outlined, color: AppColors.secondary),
+              child: Material(
+                elevation: 2,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  onTap: onTap,
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.near_me_outlined,
+                      color: AppColors.textPrimary,
+                      size: 24,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -696,16 +866,21 @@ class _ServiceBottomNavBar extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
+            children: [
               _ServiceBottomNavItem(
                 icon: Icons.home_filled,
                 label: 'Home',
+                onTap: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/driver-dashboard',
+                  (route) => route.isFirst,
+                ),
               ),
               _ServiceBottomNavItem(
                 icon: Icons.directions_car_filled,
                 label: 'Vehicles',
+                onTap: () => Navigator.of(context).pushNamed('/vehicles'),
               ),
-              _ServiceBottomNavItem(
+              const _ServiceBottomNavItem(
                 icon: Icons.handyman_outlined,
                 label: 'Service',
                 isActive: true,
@@ -713,10 +888,12 @@ class _ServiceBottomNavBar extends StatelessWidget {
               _ServiceBottomNavItem(
                 icon: Icons.people_alt_outlined,
                 label: 'Community',
+                onTap: () {},
               ),
               _ServiceBottomNavItem(
                 icon: Icons.menu_book_outlined,
                 label: 'Edu',
+                onTap: () {},
               ),
             ],
           ),
@@ -731,17 +908,19 @@ class _ServiceBottomNavItem extends StatelessWidget {
     required this.icon,
     required this.label,
     this.isActive = false,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool isActive;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = isActive ? Colors.black : AppColors.textSecondary;
     return InkWell(
-      onTap: null,
+      onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -753,4 +932,3 @@ class _ServiceBottomNavItem extends StatelessWidget {
     );
   }
 }
-

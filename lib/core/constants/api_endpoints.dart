@@ -2,9 +2,16 @@
 /// Base URL should be configured via environment or app constants.
 library;
 
+import 'dart:io' show Platform;
+
 class ApiEndpoints {
-  /// Base URL for driver-garage-backend (e.g. http://10.0.2.2:3000 for Android emulator).
-  static const String baseUrl = 'http://10.0.2.2:4000';
+  /// Base URL for driver-garage-backend.
+  /// Android emulator cannot reach localhost; 10.0.2.2 is the host machine.
+  /// iOS simulator and desktop can use localhost.
+  static String get baseUrl {
+    if (Platform.isAndroid) return 'http://10.0.2.2:4000';
+    return 'http://localhost:4000';
+  }
 
   // ----- Driver Auth (prefix: /drivers/auth) -----
   static const String driverAuthSignup = '/drivers/auth/signup';
@@ -19,6 +26,10 @@ class ApiEndpoints {
       '/drivers/appointments/$id/reschedule';
   static String driverAppointmentCancel(String id) =>
       '/drivers/appointments/$id/cancel';
+
+  // ----- Driver Vehicles (try /driver/vehicles if /drivers/vehicles returns 404) -----
+  static const String driverVehicles = '/driver/vehicles';
+  static String driverVehicleById(String id) => '/driver/vehicles/$id';
 
   // ----- Legacy / other (keep for future use) -----
   static const String profile = '/profile';

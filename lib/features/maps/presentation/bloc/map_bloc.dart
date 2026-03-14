@@ -11,6 +11,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     on<MapUserLocationUnavailable>(_onUserLocationUnavailable);
     on<MapTypeChanged>(_onMapTypeChanged);
     on<MapLiveTrackingToggled>(_onLiveTrackingToggled);
+    on<MapCustomOriginSet>(_onCustomOriginSet);
+    on<MapCustomOriginCleared>(_onCustomOriginCleared);
   }
 
   void _onUserLocationUpdated(
@@ -40,5 +42,16 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
   void _onLiveTrackingToggled(MapLiveTrackingToggled event, Emitter<MapState> emit) {
     emit(state.copyWith(liveTracking: event.enabled));
+  }
+
+  void _onCustomOriginSet(MapCustomOriginSet event, Emitter<MapState> emit) {
+    emit(state.copyWith(
+      customOriginLatLng: event.position,
+      customOriginName: event.displayName,
+    ));
+  }
+
+  void _onCustomOriginCleared(MapCustomOriginCleared event, Emitter<MapState> emit) {
+    emit(state.copyWith(clearCustomOrigin: true));
   }
 }

@@ -31,13 +31,14 @@ class ServiceLocatorState extends Equatable {
   ServiceLocatorState copyWith({
     List<ServiceCenter>? centers,
     String? selectedCenterId,
+    bool clearSelectedCenter = false,
     List<String>? visibleCenterIds,
     bool? isLoading,
     String? failureMessage,
   }) {
     return ServiceLocatorState(
       centers: centers ?? this.centers,
-      selectedCenterId: selectedCenterId ?? this.selectedCenterId,
+      selectedCenterId: clearSelectedCenter ? null : (selectedCenterId ?? this.selectedCenterId),
       visibleCenterIds: visibleCenterIds ?? this.visibleCenterIds,
       isLoading: isLoading ?? this.isLoading,
       failureMessage: failureMessage,

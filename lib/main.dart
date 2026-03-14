@@ -19,6 +19,10 @@ import 'features/auth/presentation/pages/signup_page.dart';
 import 'features/dashboard/presentation/pages/driver_dashboard_page.dart';
 import 'features/services/presentation/pages/service_locator_page.dart';
 import 'features/services/presentation/pages/service_locator_page_wrapper.dart';
+import 'features/vehicles/domain/entities/vehicle.dart';
+import 'features/vehicles/presentation/pages/add_vehicle_page.dart';
+import 'features/vehicles/presentation/pages/vehicle_detail_page.dart';
+import 'features/vehicles/presentation/pages/vehicles_list_page.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -70,9 +74,19 @@ class App extends StatelessWidget {
           '/services/map': (context) {
             final args = ModalRoute.of(context)?.settings.arguments;
             final initialCenterId = args is String ? args : null;
-            return ServiceLocatorPageWrapper(
-              initialCenterId: initialCenterId,
-            );
+            return ServiceLocatorPageWrapper(initialCenterId: initialCenterId);
+          },
+          '/vehicles': (context) => const VehiclesListPage(),
+          '/vehicles/detail': (context) {
+            final args = ModalRoute.of(context)?.settings.arguments;
+            final id = args is String ? args : '';
+            return VehicleDetailPage(vehicleId: id);
+          },
+          '/vehicles/add': (context) => const AddVehiclePage(),
+          '/vehicles/edit': (context) {
+            final args = ModalRoute.of(context)?.settings.arguments;
+            final vehicle = args is Vehicle ? args : null;
+            return AddVehiclePage(editVehicle: vehicle);
           },
         },
       ),

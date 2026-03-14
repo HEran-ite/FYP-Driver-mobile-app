@@ -52,7 +52,7 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
     required String id,
     required String scheduledAt,
   }) async {
-    final res = await _dio.patch<Map<String, dynamic>>(
+    final res = await _dio.put<Map<String, dynamic>>(
       ApiEndpoints.driverAppointmentReschedule(id),
       data: {'scheduledAt': scheduledAt},
     );
@@ -61,7 +61,7 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
 
   @override
   Future<AppointmentModel> cancel(String id) async {
-    final res = await _dio.patch<Map<String, dynamic>>(
+    final res = await _dio.put<Map<String, dynamic>>(
       ApiEndpoints.driverAppointmentCancel(id),
     );
     return AppointmentModel.fromJson(res.data!);

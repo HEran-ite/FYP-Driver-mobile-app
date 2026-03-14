@@ -49,7 +49,7 @@ class AppDrawer extends StatelessWidget {
                   activeIcon: Icons.directions_car,
                   label: 'My Vehicles',
                   isActive: currentRoute == '/vehicles',
-                  onTap: () => _navigate(context, '/driver-dashboard'),
+                  onTap: () => _navigate(context, '/vehicles'),
                 ),
                 _DrawerTile(
                   icon: Icons.build_outlined,
