@@ -2,6 +2,7 @@
 /// 
 /// All spacing values used in the application should be defined here.
 /// Use these constants instead of hardcoded values.
+library;
 
 class Spacing {
   // Extra Small

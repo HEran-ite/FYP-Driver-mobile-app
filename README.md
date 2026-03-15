@@ -107,7 +107,15 @@ lib/
    - Uncomment DI code in `lib/injection/service_locator.dart`
    - Register your dependencies as you build features
 
-4. **Start Development**
+4. **API keys from `.env` (do not commit `.env`)**
+   - Copy `.env.example` to `.env` and set `GOOGLE_MAPS_API_KEY=your_key` (and `API_BASE_URL` if needed).
+   - The app reads the key from `.env` in Dart. For the **native** Google Maps SDK (iOS/Android), run once before building:
+     ```bash
+     ./scripts/inject_api_key.sh
+     ```
+     This writes the key from `.env` into `ios/Runner/Info.plist` and `android/local.properties`. Re-run if you change the key in `.env`.
+
+5. **Start Development**
    - Begin with the authentication feature
    - Follow the feature development workflow in `docs/ARCHITECTURE.md`
 
