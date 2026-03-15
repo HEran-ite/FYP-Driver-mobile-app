@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
@@ -6,6 +7,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/constants/dimensions.dart';
 import '../../../../core/widgets/app_drawer.dart';
+import '../../../../core/widgets/nav_app_bar.dart';
+import '../../../../injection/service_locator.dart';
+import '../../../vehicles/domain/entities/vehicle.dart';
+import '../../../vehicles/presentation/bloc/vehicles_bloc.dart';
+import '../../../vehicles/presentation/bloc/vehicles_event.dart';
+import '../../../vehicles/presentation/bloc/vehicles_state.dart';
 
 class DriverDashboardPage extends StatelessWidget {
   const DriverDashboardPage({super.key});
@@ -15,27 +22,11 @@ class DriverDashboardPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       drawer: const AppDrawer(currentRoute: '/driver-dashboard'),
-      appBar: _buildAppBar(context),
+      appBar: const NavAppBar(title: 'CarCare', notificationCount: 3),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.lg,
-            vertical: Spacing.lg,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              _VehicleCard(),
-              SizedBox(height: Spacing.lg),
-              _VehicleHealthSection(),
-              SizedBox(height: Spacing.lg),
-              _MaintenanceRemindersSection(),
-              SizedBox(height: Spacing.lg),
-              _QuickActionsSection(),
-              SizedBox(height: Spacing.lg),
-              _RecentActivitySection(),
-            ],
-          ),
+        child: BlocProvider(
+          create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
+          child: const _DashboardBody(),
         ),
       ),
       bottomNavigationBar: const _BottomNavBar(),
@@ -61,94 +52,273 @@ class DriverDashboardPage extends StatelessWidget {
       floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
   }
+}
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: AppColors.background,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      title: Text(
-        'CarCare',
-        style: AppTextStyles.titleMedium.copyWith(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
+class _DashboardBody extends StatefulWidget {
+  const _DashboardBody();
+
+  @override
+  State<_DashboardBody> createState() => _DashboardBodyState();
+}
+
+class _DashboardBodyState extends State<_DashboardBody> {
+  String? _selectedVehicleId;
+  bool _dropdownOpen = false;
+  OverlayEntry? _dropdownOverlay;
+  final GlobalKey _vehicleCardKey = GlobalKey();
+
+  void _closeDropdown() {
+    _dropdownOverlay?.remove();
+    _dropdownOverlay = null;
+    if (mounted) setState(() => _dropdownOpen = false);
+  }
+
+  void _openDropdown(List<Vehicle> vehicles) {
+    setState(() => _dropdownOpen = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final box = _vehicleCardKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box == null) return;
+      final offset = box.localToGlobal(Offset.zero);
+      final size = box.size;
+      final rect = Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height);
+      final overlay = Overlay.of(context);
+      _dropdownOverlay = OverlayEntry(
+        builder: (ctx) => Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _closeDropdown,
+              ),
+            ),
+            Positioned(
+              left: rect.left,
+              top: rect.bottom,
+              width: rect.width,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
+                child: _VehicleDropdownList(
+                  vehicles: vehicles,
+                  selectedId: _selectedVehicleId,
+                  onSelect: (v) {
+                    setState(() => _selectedVehicleId = v.id);
+                    _closeDropdown();
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
+      );
+      overlay.insert(_dropdownOverlay!);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          BlocBuilder<VehiclesBloc, VehiclesState>(
+            buildWhen: (prev, curr) =>
+                prev is VehiclesLoading != curr is VehiclesLoading ||
+                (prev is VehiclesLoaded && curr is VehiclesLoaded && prev.vehicles != curr.vehicles),
+            builder: (context, state) {
+              final vehicles = state is VehiclesLoaded ? state.vehicles : <Vehicle>[];
+              final displayed = vehicles.isEmpty
+                  ? null
+                  : vehicles.where((v) => v.id == _selectedVehicleId).firstOrNull ??
+                      (vehicles.isNotEmpty ? vehicles.first : null);
+              return KeyedSubtree(
+                key: _vehicleCardKey,
+                child: _VehicleCard(
+                  vehicle: displayed,
+                  vehicles: vehicles,
+                  dropdownOpen: _dropdownOpen,
+                  onTap: () {
+                    if (vehicles.isEmpty) {
+                      Navigator.of(context).pushNamed('/vehicles');
+                    } else if (_dropdownOpen) {
+                      _closeDropdown();
+                    } else {
+                      _openDropdown(vehicles);
+                    }
+                  },
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: Spacing.lg),
+          const _VehicleHealthSection(),
+          const SizedBox(height: Spacing.lg),
+          const _MaintenanceRemindersSection(),
+          const SizedBox(height: Spacing.lg),
+          const _QuickActionsSection(),
+          const SizedBox(height: Spacing.lg),
+          const _RecentActivitySection(),
+        ],
       ),
-      centerTitle: false,
-      leading: Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary),
-          onPressed: () {},
-        ),
-        const SizedBox(width: Spacing.xs),
-        CircleAvatar(
-          radius: Dimensions.profileAvatarRadius,
-          backgroundColor: AppColors.surfaceMuted,
-          child: const Icon(Icons.person_rounded, color: AppColors.textSecondary),
-        ),
-        const SizedBox(width: Spacing.md),
-      ],
     );
   }
 }
 
 class _VehicleCard extends StatelessWidget {
-  const _VehicleCard();
+  const _VehicleCard({
+    this.vehicle,
+    required this.vehicles,
+    required this.dropdownOpen,
+    required this.onTap,
+  });
+
+  final Vehicle? vehicle;
+  final List<Vehicle> vehicles;
+  final bool dropdownOpen;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName = vehicle?.displayName ?? 'No vehicle';
+    final plate = vehicle?.plateNumber ?? 'Add a vehicle';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+      child: Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: Dimensions.vehicleIconContainerSize,
+              height: Dimensions.vehicleIconContainerSize,
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
+              ),
+              child: const Icon(
+                Icons.directions_car_rounded,
+                color: Colors.white,
+                size: Dimensions.vehicleIconSize,
+              ),
+            ),
+            const SizedBox(width: Spacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.xs),
+                  Text(
+                    plate,
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              vehicles.isEmpty
+                  ? Icons.add_rounded
+                  : (dropdownOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded),
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VehicleDropdownList extends StatelessWidget {
+  const _VehicleDropdownList({
+    required this.vehicles,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  final List<Vehicle> vehicles;
+  final String? selectedId;
+  final ValueChanged<Vehicle> onSelect;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+        borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
-            blurRadius: 20,
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: Dimensions.vehicleIconContainerSize,
-            height: Dimensions.vehicleIconContainerSize,
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
-            ),
-            child: const Icon(
-              Icons.directions_car_rounded,
-              color: Colors.white,
-              size: Dimensions.vehicleIconSize,
-            ),
-          ),
-          const SizedBox(width: Spacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Honda Civic 2020',
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: AppColors.textPrimary,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final v in vehicles)
+              InkWell(
+                onTap: () => onSelect(v),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
+                        ),
+                        child: const Icon(Icons.directions_car_rounded, color: AppColors.secondary, size: 22),
+                      ),
+                      const SizedBox(width: Spacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              v.displayName,
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                            ),
+                            Text(
+                              v.plateNumber,
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (selectedId == v.id)
+                        const Icon(Icons.check, color: AppColors.secondary, size: 20),
+                    ],
                   ),
                 ),
-                const SizedBox(height: Spacing.xs),
-                Text('ABC-123', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-          const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
-        ],
+              ),
+          ],
+        ),
       ),
     );
   }

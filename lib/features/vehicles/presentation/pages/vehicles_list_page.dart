@@ -9,6 +9,7 @@ import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_drawer.dart';
+import '../../../../core/widgets/nav_app_bar.dart';
 import '../../../../injection/service_locator.dart';
 import '../../domain/entities/vehicle.dart';
 import '../bloc/vehicles_bloc.dart';
@@ -36,7 +37,7 @@ class _VehiclesListView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       drawer: const AppDrawer(currentRoute: '/vehicles'),
-      appBar: _buildAppBar(context),
+      appBar: const NavAppBar(title: 'CarCare', notificationCount: 3),
       body: SafeArea(
         child: BlocBuilder<VehiclesBloc, VehiclesState>(
           builder: (context, state) {
@@ -140,29 +141,6 @@ class _VehiclesListView extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: const _VehiclesListBottomNavBar(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.of(context).pushNamed('/vehicles/add');
-          if (context.mounted) {
-            context.read<VehiclesBloc>().add(const VehiclesLoadRequested());
-          }
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: AppColors.secondary),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: AppColors.surface,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-        onPressed: () => Scaffold.of(context).openDrawer(),
-      ),
-      title: null,
     );
   }
 }

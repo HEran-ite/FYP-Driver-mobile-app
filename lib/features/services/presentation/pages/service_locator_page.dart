@@ -7,6 +7,7 @@ import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_drawer.dart';
+import '../../../../core/widgets/nav_app_bar.dart';
 import '../../../../injection/service_locator.dart';
 import '../../../appointments/domain/entities/appointment.dart';
 import '../../../appointments/presentation/bloc/appointments_bloc.dart';
@@ -47,7 +48,7 @@ class _ServiceLocatorView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       drawer: const AppDrawer(currentRoute: '/services'),
-      appBar: _buildAppBar(context),
+      appBar: const NavAppBar(title: 'CarCare', notificationCount: 3),
       body: SafeArea(
         child: BlocConsumer<AppointmentsBloc, AppointmentsState>(
           listenWhen: (prev, curr) =>
@@ -137,66 +138,6 @@ class _ServiceLocatorView extends StatelessWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      title: Text(
-        'CarCare',
-        style: AppTextStyles.titleMedium.copyWith(
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-      ),
-      centerTitle: true,
-      leading: Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
-        ),
-      ),
-      actions: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              icon: const Icon(
-                Icons.notifications_none_outlined,
-                color: Colors.black,
-              ),
-              onPressed: () {},
-            ),
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: AppColors.danger,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
-                child: Center(
-                  child: Text(
-                    '3',
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(width: Spacing.xs),
-      ],
-    );
-  }
 }
 
 class _ServiceErrorView extends StatelessWidget {
