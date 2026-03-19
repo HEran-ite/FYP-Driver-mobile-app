@@ -7,6 +7,7 @@ abstract class AppointmentRepository {
   Future<Appointment> getById(String id);
   Future<Appointment> book({
     required String garageId,
+    required String vehicleId,
     required DateTime scheduledAt,
     required String serviceDescription,
   });

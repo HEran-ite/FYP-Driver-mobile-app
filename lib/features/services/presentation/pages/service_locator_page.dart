@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/dimensions.dart';
@@ -17,6 +18,8 @@ import '../../domain/entities/service_center.dart';
 import '../bloc/service_locator_bloc.dart';
 import '../bloc/service_locator_event.dart';
 import '../bloc/service_locator_state.dart';
+import 'book_service_wizard_page.dart';
+import '../widgets/service_tag_chip.dart';
 
 class ServiceLocatorPage extends StatelessWidget {
   const ServiceLocatorPage({super.key});
@@ -26,9 +29,7 @@ class ServiceLocatorPage extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) =>
-              getIt<ServiceLocatorBloc>()
-                ..add(const InitializeServiceLocator()),
+          create: (_) => getIt<ServiceLocatorBloc>(),
         ),
         BlocProvider(
           create: (_) =>
@@ -40,8 +41,67 @@ class ServiceLocatorPage extends StatelessWidget {
   }
 }
 
-class _ServiceLocatorView extends StatelessWidget {
+class _ServiceLocatorView extends StatefulWidget {
   const _ServiceLocatorView();
+
+  @override
+  State<_ServiceLocatorView> createState() => _ServiceLocatorViewState();
+}
+
+class _ServiceLocatorViewState extends State<_ServiceLocatorView> {
+  static const double _fallbackLat = 0.0;
+  static const double _fallbackLng = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNearbyWithLocation();
+  }
+
+  Future<void> _loadNearbyWithLocation() async {
+    double lat = _fallbackLat;
+    double lng = _fallbackLng;
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        // Keep fallback coords; backend requires params.
+        throw Exception('Location services are disabled');
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Location permissions are permanently denied');
+      }
+      if (permission == LocationPermission.denied) {
+        throw Exception('Location permission denied');
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      lat = pos.latitude;
+      lng = pos.longitude;
+    } catch (e) {
+      // Show a helpful message but still load with fallback coordinates to avoid backend 400s.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$e. Showing results based on default location.'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    if (!mounted) return;
+    context.read<ServiceLocatorBloc>().add(
+          LoadNearbyGarages(latitude: lat, longitude: lng),
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,9 +142,7 @@ class _ServiceLocatorView extends StatelessWidget {
               if (state.failureMessage != null && state.centers.isEmpty) {
                 return _ServiceErrorView(
                   message: state.failureMessage!,
-                  onRetry: () => context.read<ServiceLocatorBloc>().add(
-                    const LoadNearbyGarages(),
-                  ),
+                  onRetry: _loadNearbyWithLocation,
                 );
               }
 
@@ -132,7 +190,7 @@ class _ServiceLocatorView extends StatelessWidget {
         backgroundColor: AppColors.primary,
         shape: const CircleBorder(),
         onPressed: () {},
-        child: const ImageIcon(AssetImage('assets/images/ai_icon.png')),
+        child: const ImageIcon(AssetImage('assets/images/ai_Icon.png')),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
@@ -214,15 +272,44 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
                 a.status != AppointmentStatus.rejected &&
                 a.status != AppointmentStatus.completed)
             .toList();
+
+        final top3 = upcoming.take(3).toList();
+        final hasMore = upcoming.length > 3;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Upcoming Appointments',
-              style: AppTextStyles.titleSmall.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Upcoming Appointments',
+                    style: AppTextStyles.titleSmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final appointmentsBloc = context.read<AppointmentsBloc>();
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => BlocProvider.value(
+                          value: appointmentsBloc,
+                          child: AllUpcomingAppointmentsPage(centers: centers),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'View All',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: hasMore ? AppColors.textSecondary : AppColors.textSecondary.withOpacity(0.7),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: Spacing.md),
             if (upcoming.isEmpty)
@@ -250,18 +337,102 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
                 ),
               )
             else
-              ...upcoming.take(5).map(
-                    (a) => Padding(
-                      padding: const EdgeInsets.only(bottom: Spacing.sm),
-                      child: _AppointmentCardFromEntity(
-                        appointment: a,
-                        centers: centers,
-                      ),
-                    ),
+              ...top3.map(
+                (a) => Padding(
+                  padding: const EdgeInsets.only(bottom: Spacing.sm),
+                  child: _AppointmentCardFromEntity(
+                    appointment: a,
+                    centers: centers,
                   ),
+                ),
+              ),
           ],
         );
       },
+    );
+  }
+}
+
+class AllUpcomingAppointmentsPage extends StatelessWidget {
+  const AllUpcomingAppointmentsPage({required this.centers});
+
+  final List<ServiceCenter> centers;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => getIt<AppointmentsBloc>()..add(const AppointmentsLoadRequested()),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.surface,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new),
+            color: AppColors.textPrimary,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            'Appointments',
+            style: AppTextStyles.titleMedium.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        body: SafeArea(
+          child: BlocBuilder<AppointmentsBloc, AppointmentsState>(
+            builder: (context, state) {
+              List<Appointment> appointments;
+              if (state is AppointmentsLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (state is AppointmentsLoaded) {
+                appointments = state.appointments;
+              } else if (state is AppointmentActionSuccess) {
+                appointments = [state.appointment];
+              } else {
+                appointments = <Appointment>[];
+              }
+
+              // Include cancelled as well, but keep rejected/completed out.
+              final upcoming = appointments
+                  .where((a) =>
+                      a.status != AppointmentStatus.rejected &&
+                      a.status != AppointmentStatus.completed)
+                  .toList();
+
+              if (upcoming.isEmpty) {
+                return Center(
+                  child: Text(
+                    'No upcoming appointments',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.lg,
+                  vertical: Spacing.lg,
+                ),
+                itemCount: upcoming.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: Spacing.sm),
+                    child: _AppointmentCardFromEntity(
+                      appointment: upcoming[index],
+                      centers: centers,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        bottomNavigationBar: const _ServiceBottomNavBar(),
+      ),
     );
   }
 }
@@ -289,6 +460,9 @@ class _AppointmentCardFromEntity extends StatelessWidget {
     final statusColor = _statusColor(appointment.status);
     final dateStr = _formatDate(appointment.scheduledAt);
     final timeStr = _formatTime(appointment.scheduledAt);
+
+    final garageName = appointment.garageName ?? _garageName;
+    final carName = appointment.vehicleName ?? '—';
 
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
@@ -343,7 +517,14 @@ class _AppointmentCardFromEntity extends StatelessWidget {
           ),
           const SizedBox(height: Spacing.xs),
           Text(
-            _garageName,
+            'Garage: $garageName',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: Spacing.xs),
+          Text(
+            'Car: $carName',
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -474,11 +655,11 @@ class _AppointmentCardFromEntity extends StatelessWidget {
       case AppointmentStatus.rejected:
         return AppColors.danger;
       case AppointmentStatus.inService:
-        return AppColors.info;
+        return AppColors.pending;
       case AppointmentStatus.completed:
-        return AppColors.success;
+        return AppColors.infoStatus;
       case AppointmentStatus.cancelled:
-        return AppColors.textSecondary;
+        return AppColors.danger;
     }
   }
 
@@ -635,22 +816,7 @@ class _NearbyCenterCard extends StatelessWidget {
                         spacing: Spacing.xs,
                         runSpacing: Spacing.xs,
                         children: center.services.take(4).map((s) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: Spacing.sm,
-                              vertical: Spacing.xs,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceMuted,
-                              borderRadius: BorderRadius.circular(BorderRadiusValues.sm),
-                            ),
-                            child: Text(
-                              s,
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          );
+                          return ServiceTagChip(label: s);
                         }).toList(),
                       ),
                     ],
@@ -664,7 +830,13 @@ class _NearbyCenterCard extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => BookServiceWizardPage(center: center),
+                      ),
+                    );
+                  },
                   icon: const Icon(Icons.calendar_today_outlined, size: 18),
                   label: const Text('Book'),
                   style: ElevatedButton.styleFrom(
@@ -693,7 +865,10 @@ class _NearbyCenterCard extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).pushNamed(
                       '/services/map',
-                      arguments: center.id,
+                      arguments: {
+                        'centerId': center.id,
+                        'autoNavigate': true,
+                      },
                     );
                   },
                   icon: const Icon(Icons.near_me_outlined, size: 18),

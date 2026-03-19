@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,13 +9,12 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart'
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/border_radius.dart';
-import '../../../../core/constants/dimensions.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../injection/service_locator.dart';
 import '../../domain/entities/service_center.dart';
 import '../../../appointments/presentation/bloc/appointments_bloc.dart';
 import '../../../appointments/presentation/bloc/appointments_event.dart';
@@ -32,15 +32,29 @@ import '../../../maps/presentation/bloc/map_state.dart';
 import '../bloc/service_locator_bloc.dart';
 import '../bloc/service_locator_event.dart';
 import '../bloc/service_locator_state.dart';
+import 'book_service_wizard_page.dart';
+import '../widgets/service_tag_chip.dart';
 
 /// Default fallback when location is unavailable (San Francisco).
 const double _defaultLat = 37.7749;
 const double _defaultLng = -122.4194;
 
+enum _MapCategory {
+  garages,
+  gasStations,
+  carWash,
+  hotels,
+  parking,
+  evCharging,
+  tireShop,
+  towing,
+}
+
 class ServiceMapPage extends StatefulWidget {
   final String? initialCenterId;
+  final bool autoNavigate;
 
-  const ServiceMapPage({super.key, this.initialCenterId});
+  const ServiceMapPage({super.key, this.initialCenterId, this.autoNavigate = false});
 
   @override
   State<ServiceMapPage> createState() => _ServiceMapPageState();
@@ -55,6 +69,12 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
   Set<Polyline> _routePolylines = {};
   final List<_RecentPlace> _recentDestinations = [];
   StreamSubscription<Position>? _positionSubscription;
+  BitmapDescriptor? _garageCarMarkerIcon;
+  // When true, user has interacted (tapped) with a center on this screen.
+  // We use this to avoid opening the bottom sheet automatically on page open.
+  bool _userSelectedCenter = false;
+  bool _didAutoNavigate = false;
+  _MapCategory _selectedCategory = _MapCategory.garages;
 
   @override
   void initState() {
@@ -64,6 +84,72 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
       bloc.add(SelectServiceCenter(widget.initialCenterId!));
     }
     _resolveUserLocation();
+    _loadMarkerIcon();
+  }
+
+  void _maybeAutoNavigate(ServiceLocatorState state, LatLng? userLocation) {
+    if (!widget.autoNavigate || _didAutoNavigate) return;
+    if (widget.initialCenterId == null) return;
+    ServiceCenter? center;
+    try {
+      center = state.centers.firstWhere((c) => c.id == widget.initialCenterId);
+    } catch (_) {
+      center = null;
+    }
+    if (center == null) return;
+    final selectedCenter = center;
+    _didAutoNavigate = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _userSelectedCenter = true);
+      context.read<ServiceLocatorBloc>().add(SelectServiceCenter(selectedCenter.id));
+      _focusOnCenter(selectedCenter);
+      _navigateInApp(selectedCenter, userLocation);
+    });
+  }
+
+  Future<void> _loadMarkerIcon() async {
+    try {
+      final bytes = await _iconToPngBytes(
+        icon: Icons.garage_rounded,
+        color: const Color(0xFF1DB954),
+        size: 96,
+      );
+      if (!mounted) return;
+      setState(() {
+        _garageCarMarkerIcon = BitmapDescriptor.fromBytes(bytes);
+      });
+    } catch (_) {
+      // Fallback handled in _buildMarkers.
+    }
+  }
+
+  Future<Uint8List> _iconToPngBytes({
+    required IconData icon,
+    required Color color,
+    required double size,
+  }) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(icon.codePoint),
+      style: TextStyle(
+        fontSize: size,
+        fontFamily: icon.fontFamily,
+        package: icon.fontPackage,
+        color: color,
+      ),
+    );
+    textPainter.layout();
+    final pad = size * 0.25;
+    final imgW = (textPainter.width + pad * 2).ceil();
+    final imgH = (textPainter.height + pad * 2).ceil();
+    textPainter.paint(canvas, Offset(pad, pad));
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(imgW, imgH);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
   }
 
   Future<void> _resolveUserLocation() async {
@@ -159,6 +245,34 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
     context.read<PlacesBloc>().add(PlaceSelected(placeId));
   }
 
+  void _onCategorySelected(_MapCategory category, LatLng? userLocation) {
+    if (_selectedCategory == category) return;
+    setState(() {
+      _selectedCategory = category;
+      _userSelectedCenter = false;
+    });
+    context.read<ServiceLocatorBloc>().add(const ClearSelectedCenter());
+
+    if (category == _MapCategory.garages) {
+      return;
+    }
+    if (userLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location required to load nearby places')),
+      );
+      return;
+    }
+    final spec = _categorySpec(category);
+    context.read<PlacesBloc>().add(
+      NearbyPlacesRequested(
+        lat: userLocation.latitude,
+        lng: userLocation.longitude,
+        type: spec.type,
+        keyword: spec.keyword,
+      ),
+    );
+  }
+
   void _getDirectionsToServiceCenter(
     ServiceCenter center,
     LatLng? userLocation,
@@ -169,6 +283,35 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
       DirectionsRequested(
         origin: userLocation,
         destination: LatLng(center.latitude, center.longitude),
+      ),
+    );
+  }
+
+  void _getDirectionsToPlace(
+    LatLng destination,
+    LatLng? userLocation,
+  ) {
+    if (userLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Current location is required for routing')),
+      );
+      return;
+    }
+    context.read<DirectionsBloc>().add(
+      DirectionsRequested(
+        origin: userLocation,
+        destination: destination,
+      ),
+    );
+  }
+
+  void _onMapTappedForRoute(LatLng destination, LatLng? userLocation) {
+    _focusOnLatLng(destination);
+    _getDirectionsToPlace(destination, userLocation);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Route updated to tapped location'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -434,10 +577,9 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
     for (int i = 0; i < state.routes.length; i++) {
       final route = state.routes[i];
       final isSelected = i == state.selectedRouteIndex;
-      final points = PolylinePoints
-          .decodePolyline(route.encodedPolyline)
-          .map((p) => LatLng(p.latitude, p.longitude))
-          .toList();
+      final points = PolylinePoints.decodePolyline(
+        route.encodedPolyline,
+      ).map((p) => LatLng(p.latitude, p.longitude)).toList();
 
       polylines.add(
         Polyline(
@@ -468,92 +610,19 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
     }
   }
 
-  Future<void> _openInGoogleMaps(
-    ServiceCenter center,
-    LatLng? userLocation,
-  ) async {
-    final origin = userLocation != null
-        ? '${userLocation.latitude},${userLocation.longitude}'
-        : null;
-    final dest = '${center.latitude},${center.longitude}';
-    final path = origin != null
-        ? 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$dest&travelmode=driving'
-        : 'https://www.google.com/maps/search/?api=1&query=$dest';
-    final uri = Uri.parse(path);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  void _navigateInApp(ServiceCenter center, LatLng? userLocation) {
+    // In-app navigation: draw the route polyline immediately.
+    _getDirectionsToServiceCenter(center, userLocation);
   }
 
   void _onBookAppointment(ServiceCenter center) {
-    _showBookDialog(context, center);
-  }
-
-  Future<void> _showBookDialog(
-    BuildContext context,
-    ServiceCenter center,
-  ) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (date == null || !context.mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: 9, minute: 0),
-    );
-    if (time == null || !context.mounted) return;
-    final scheduledAt = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
-    final descriptionController = TextEditingController(
-      text: center.services.isNotEmpty
-          ? center.services.first
-          : 'General service',
-    );
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Book Appointment'),
-        content: TextField(
-          controller: descriptionController,
-          decoration: const InputDecoration(
-            labelText: 'Service description',
-            hintText: 'e.g. Oil change, brake check',
-          ),
-          maxLines: 2,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Book Appointment'),
-          ),
-        ],
+    // Hide the selected center bottom sheet before pushing the wizard page.
+    context.read<ServiceLocatorBloc>().add(const ClearSelectedCenter());
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BookServiceWizardPage(center: center),
       ),
     );
-    final serviceDescription = descriptionController.text.trim().isEmpty
-        ? 'Service'
-        : descriptionController.text.trim();
-    descriptionController.dispose();
-    if (confirmed != true || !context.mounted) return;
-    context.read<AppointmentsBloc>().add(
-      AppointmentBookRequested(
-        garageId: center.id,
-        scheduledAt: scheduledAt,
-        serviceDescription: serviceDescription,
-      ),
-    );
-    context.read<AppointmentsBloc>().add(const AppointmentsLoadRequested());
   }
 
   @override
@@ -566,44 +635,61 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<AppointmentsBloc, AppointmentsState>(
-          listener: (context, state) {
-            if (state is AppointmentActionSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Appointment booked successfully'),
-                ),
-              );
-            }
-            if (state is AppointmentsFailure) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
-            }
-          },
-        ),
-        BlocListener<DirectionsBloc, DirectionsState>(
-          listener: (context, state) {
-            _buildRoutePolylines(state);
-          },
-        ),
-        BlocListener<PlacesBloc, PlacesState>(
-          listener: (context, state) {
-            if (state.selectedPlace != null) {
-              final place = state.selectedPlace!;
-              _mapController?.animateCamera(
-                CameraUpdate.newLatLngZoom(
-                  LatLng(place.latitude, place.longitude),
-                  15,
-                ),
-              );
-            }
-          },
-        ),
-      ],
-      child: AnnotatedRegion<SystemUiOverlayStyle>(
+    return BlocProvider(
+      create: (_) => getIt<AppointmentsBloc>()..add(const AppointmentsLoadRequested()),
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<AppointmentsBloc, AppointmentsState>(
+            listener: (context, state) {
+              if (state is AppointmentActionSuccess) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Appointment booked successfully'),
+                  ),
+                );
+              }
+              if (state is AppointmentsFailure) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(state.message)));
+              }
+            },
+          ),
+          BlocListener<DirectionsBloc, DirectionsState>(
+            listener: (context, state) {
+              _buildRoutePolylines(state);
+            },
+          ),
+          BlocListener<PlacesBloc, PlacesState>(
+            listener: (context, state) {
+              if (state.selectedPlace != null) {
+                final place = state.selectedPlace!;
+              final userLocation = context.read<MapBloc>().state.userLocation;
+                _mapController?.animateCamera(
+                  CameraUpdate.newLatLngZoom(
+                    LatLng(place.latitude, place.longitude),
+                    15,
+                  ),
+                );
+              if (userLocation != null) {
+                context.read<DirectionsBloc>().add(
+                  DirectionsRequested(
+                    origin: userLocation,
+                    destination: LatLng(place.latitude, place.longitude),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Current location is required for routing'),
+                  ),
+                );
+              }
+              }
+            },
+          ),
+        ],
+        child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
@@ -664,16 +750,25 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                     );
                   }
 
-                  final markers = _buildMarkers(state);
+                  final userLocation = mapState.userLocation;
+                  _maybeAutoNavigate(state, userLocation);
                   final initialTarget = _initialTarget(
                     state,
                     mapState.userLocation,
                   );
-                  final userLocation = mapState.userLocation;
-
-                  return Stack(
-                    children: [
-                      GoogleMap(
+                  return BlocBuilder<PlacesBloc, PlacesState>(
+                    buildWhen: (a, b) =>
+                        a.nearbyPlaces != b.nearbyPlaces ||
+                        a.isLoadingNearby != b.isLoadingNearby,
+                    builder: (context, placesState) {
+                      final markers = _buildMarkers(
+                        state,
+                        placesState,
+                        userLocation,
+                      );
+                      return Stack(
+                        children: [
+                          GoogleMap(
                         initialCameraPosition: CameraPosition(
                           target: initialTarget,
                           zoom: 13,
@@ -693,9 +788,10 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                           _mapController = controller;
                         },
                         onCameraIdle: () {},
+                        onTap: (pos) => _onMapTappedForRoute(pos, userLocation),
                         onLongPress: _onMapLongPress,
                       ),
-                      Positioned(
+                          Positioned(
                         left: 0,
                         right: 0,
                         top: 0,
@@ -708,11 +804,13 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                               Spacing.sm,
                               Spacing.sm,
                             ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
+                            child: Column(
                               children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
                                 _GoogleMapsIconButton(
-                                  icon: Icons.menu,
+                                  icon: Icons.arrow_back,
                                   onPressed: () => Navigator.of(context).pop(),
                                 ),
                                 const SizedBox(width: Spacing.sm),
@@ -725,17 +823,32 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                                     onClear: _clearDirections,
                                   ),
                                 ),
-                                const SizedBox(width: Spacing.sm),
-                                _GoogleMapsIconButton(
-                                  icon: Icons.mic_none,
-                                  onPressed: () {},
+                                  ],
                                 ),
+                                const SizedBox(height: Spacing.sm),
+                                _MapCategoryChips(
+                                  selected: _selectedCategory,
+                                  onSelected: (c) =>
+                                      _onCategorySelected(c, userLocation),
+                                ),
+                                if (_selectedCategory != _MapCategory.garages &&
+                                    placesState.isLoadingNearby)
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: Spacing.xs),
+                                    child: SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
                         ),
                       ),
-                      if (_showSearchResults)
+                          if (_showSearchResults)
                         Positioned(
                           left: Spacing.md,
                           right: Spacing.md,
@@ -746,7 +859,7 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                             searchController: _searchController,
                           ),
                         ),
-                      BlocBuilder<DirectionsBloc, DirectionsState>(
+                          BlocBuilder<DirectionsBloc, DirectionsState>(
                         builder: (context, dirState) {
                           if (dirState.hasRoute) {
                             return Positioned(
@@ -775,7 +888,7 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                           return const SizedBox.shrink();
                         },
                       ),
-                      Positioned(
+                          Positioned(
                         right: Spacing.md,
                         bottom: 200,
                         child: Column(
@@ -808,7 +921,9 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                           ],
                         ),
                       ),
-                      if (state.selectedCenterId != null)
+                          if (_selectedCategory == _MapCategory.garages &&
+                              state.selectedCenterId != null &&
+                              _userSelectedCenter)
                         Positioned(
                           left: 0,
                           right: 0,
@@ -822,7 +937,7 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                               userLocation: userLocation,
                               onBook: _onBookAppointment,
                               onNavigate: (c) =>
-                                  _openInGoogleMaps(c, userLocation),
+                                  _navigateInApp(c, userLocation),
                               onGetDirections: (c) =>
                                   _getDirectionsToServiceCenter(
                                     c,
@@ -835,68 +950,61 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                             ),
                           ),
                         ),
-                    ],
+                        ],
+                      );
+                    },
                   );
                 },
               );
             },
           ),
-          bottomNavigationBar: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              top: false,
-              child: SizedBox(
-                height: Dimensions.bottomNavHeight,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _GoogleMapsNavItem(
-                      icon: Icons.explore_outlined,
-                      label: 'Explore',
-                      isSelected: true,
-                    ),
-                    _GoogleMapsNavItem(
-                      icon: Icons.person_outline,
-                      label: 'You',
-                      isSelected: false,
-                    ),
-                    _GoogleMapsNavItem(
-                      icon: Icons.add_road,
-                      label: 'Contribute',
-                      isSelected: false,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        ),
         ),
       ),
     );
   }
 
-  Set<Marker> _buildMarkers(ServiceLocatorState state) {
+  Set<Marker> _buildMarkers(
+    ServiceLocatorState state,
+    PlacesState placesState,
+    LatLng? userLocation,
+  ) {
+    if (_selectedCategory != _MapCategory.garages) {
+      final spec = _categorySpec(_selectedCategory);
+      return placesState.nearbyPlaces.map((p) {
+        return Marker(
+          markerId: MarkerId('${_selectedCategory.name}_${p.placeId}'),
+          position: LatLng(p.latitude, p.longitude),
+          infoWindow: InfoWindow(
+            title: p.name,
+            snippet: p.formattedAddress,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(spec.markerHue),
+          onTap: () {
+            final destination = LatLng(p.latitude, p.longitude);
+            _focusOnLatLng(destination);
+            _getDirectionsToPlace(destination, userLocation);
+          },
+        );
+      }).toSet();
+    }
+
     final bloc = context.read<ServiceLocatorBloc>();
     return state.centers.map((center) {
-      final hue = center.isRegistered
-          ? BitmapDescriptor.hueAzure
+      final fallbackHue = center.isRegistered
+          ? BitmapDescriptor.hueGreen
           : BitmapDescriptor.hueOrange;
+      final icon = center.isRegistered && _garageCarMarkerIcon != null
+          ? _garageCarMarkerIcon!
+          : BitmapDescriptor.defaultMarkerWithHue(fallbackHue);
 
       return Marker(
         markerId: MarkerId(center.id),
         position: LatLng(center.latitude, center.longitude),
-        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+        icon: icon,
         onTap: () {
           context.read<PlacesBloc>().add(const PlacesCleared());
+          setState(() => _userSelectedCenter = true);
           bloc.add(SelectServiceCenter(center.id));
           _focusOnCenter(center);
         },
@@ -907,6 +1015,151 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
   void _focusOnCenter(ServiceCenter center) {
     _mapController?.animateCamera(
       CameraUpdate.newLatLng(LatLng(center.latitude, center.longitude)),
+    );
+  }
+
+  void _focusOnLatLng(LatLng latLng) {
+    _mapController?.animateCamera(CameraUpdate.newLatLng(latLng));
+  }
+}
+
+class _CategorySpec {
+  final String label;
+  final IconData icon;
+  final String? type;
+  final String? keyword;
+  final double markerHue;
+
+  const _CategorySpec({
+    required this.label,
+    required this.icon,
+    required this.type,
+    required this.keyword,
+    required this.markerHue,
+  });
+}
+
+_CategorySpec _categorySpec(_MapCategory c) {
+  switch (c) {
+    case _MapCategory.garages:
+      return const _CategorySpec(
+        label: 'Garages',
+        icon: Icons.garage_rounded,
+        type: 'car_repair',
+        keyword: 'garage',
+        markerHue: BitmapDescriptor.hueGreen,
+      );
+    case _MapCategory.gasStations:
+      return const _CategorySpec(
+        label: 'Gas Stations',
+        icon: Icons.local_gas_station_rounded,
+        type: 'gas_station',
+        keyword: null,
+        markerHue: BitmapDescriptor.hueAzure,
+      );
+    case _MapCategory.carWash:
+      return const _CategorySpec(
+        label: 'Car Wash',
+        icon: Icons.local_car_wash_rounded,
+        type: 'car_wash',
+        keyword: null,
+        markerHue: BitmapDescriptor.hueViolet,
+      );
+    case _MapCategory.hotels:
+      return const _CategorySpec(
+        label: 'Hotels',
+        icon: Icons.hotel_rounded,
+        type: 'lodging',
+        keyword: 'hotel',
+        markerHue: BitmapDescriptor.hueOrange,
+      );
+    case _MapCategory.parking:
+      return const _CategorySpec(
+        label: 'Parking',
+        icon: Icons.local_parking_rounded,
+        type: 'parking',
+        keyword: null,
+        markerHue: BitmapDescriptor.hueCyan,
+      );
+    case _MapCategory.evCharging:
+      return const _CategorySpec(
+        label: 'EV Charging',
+        icon: Icons.ev_station_rounded,
+        type: 'electric_vehicle_charging_station',
+        keyword: 'ev charging',
+        markerHue: BitmapDescriptor.hueBlue,
+      );
+    case _MapCategory.tireShop:
+      return const _CategorySpec(
+        label: 'Tire Shop',
+        icon: Icons.tire_repair_rounded,
+        type: 'car_repair',
+        keyword: 'tire shop',
+        markerHue: BitmapDescriptor.hueMagenta,
+      );
+    case _MapCategory.towing:
+      return const _CategorySpec(
+        label: 'Towing',
+        icon: Icons.car_crash_rounded,
+        type: 'car_repair',
+        keyword: 'towing',
+        markerHue: BitmapDescriptor.hueRose,
+      );
+  }
+}
+
+class _MapCategoryChips extends StatelessWidget {
+  const _MapCategoryChips({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final _MapCategory selected;
+  final void Function(_MapCategory category) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = _MapCategory.values;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: categories.map((c) {
+          final isSelected = c == selected;
+          final spec = _categorySpec(c);
+          return Padding(
+            padding: const EdgeInsets.only(right: Spacing.xs),
+            child: ChoiceChip(
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    spec.icon,
+                    size: 16,
+                    color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    spec.label,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? AppColors.textOnPrimary : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              selected: isSelected,
+              onSelected: (_) => onSelected(c),
+              selectedColor: AppColors.secondary,
+              backgroundColor: AppColors.surface,
+              side: BorderSide(
+                color: isSelected ? AppColors.secondary : AppColors.border,
+              ),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              showCheckmark: false,
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -1111,39 +1364,6 @@ class _GoogleMapsZoomControl extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Bottom nav item – light mode.
-class _GoogleMapsNavItem extends StatelessWidget {
-  const _GoogleMapsNavItem({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isSelected ? AppColors.textPrimary : AppColors.textSecondary;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, size: 26, color: color),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: AppTextStyles.labelSmall.copyWith(
-            color: color,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -1934,10 +2154,7 @@ class _SelectedCenterBottomSheet extends StatelessWidget {
         final center = _getSelectedCenter(state);
         if (center == null) return const SizedBox.shrink();
 
-        return DefaultTabController(
-          initialIndex: 0,
-          length: 2,
-          child: Container(
+        return Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: const BorderRadius.only(
@@ -1957,20 +2174,16 @@ class _SelectedCenterBottomSheet extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: TabBar(
-                        labelColor: AppColors.primary,
-                        unselectedLabelColor: AppColors.textSecondary,
-                        indicatorColor: AppColors.primary,
-                        labelStyle: AppTextStyles.labelLarge.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        tabs: const [
-                          Tab(text: 'Overview'),
-                          Tab(text: 'Directions'),
-                        ],
+                  const SizedBox(width: Spacing.lg),
+                  Expanded(
+                    child: Text(
+                      'Garage details',
+                      style: AppTextStyles.labelLarge.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
                     ),
+                  ),
                     if (onClose != null)
                       IconButton(
                         icon: const Icon(Icons.close),
@@ -1979,29 +2192,18 @@ class _SelectedCenterBottomSheet extends StatelessWidget {
                       ),
                   ],
                 ),
-                SizedBox(
-                  height: 280,
-                  child: TabBarView(
-                    children: [
-                      _OverviewTab(
-                        center: center,
-                        onBook: onBook,
-                        onNavigate: onNavigate,
-                        onGetDirections: onGetDirections,
-                        onRequestOnSite: onRequestOnSite,
-                      ),
-                      _DirectionsTab(
-                        center: center,
-                        userLocation: userLocation,
-                        onNavigate: onNavigate,
-                        onGetDirections: onGetDirections,
-                      ),
-                    ],
-                  ),
+              SizedBox(
+                height: 280,
+                child: _OverviewTab(
+                  center: center,
+                  onBook: onBook,
+                  onNavigate: onNavigate,
+                  onGetDirections: onGetDirections,
+                  onRequestOnSite: onRequestOnSite,
                 ),
+              ),
               ],
             ),
-          ),
         );
       },
     );
@@ -2109,12 +2311,7 @@ class _OverviewTab extends StatelessWidget {
             runSpacing: Spacing.xs,
             children: center.services
                 .map(
-                  (s) => Chip(
-                    label: Text(s, style: AppTextStyles.labelSmall),
-                    backgroundColor: AppColors.surface,
-                    side: const BorderSide(color: AppColors.border),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
+                  (s) => ServiceTagChip(label: s),
                 )
                 .toList(),
           ),
@@ -2148,21 +2345,8 @@ class _OverviewTab extends StatelessWidget {
           const SizedBox(height: Spacing.sm),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => onGetDirections(center),
-              icon: const Icon(Icons.route, size: 20),
-              label: const Text('Show route on map'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.secondary,
-                side: const BorderSide(color: AppColors.border),
-              ),
-            ),
-          ),
-          const SizedBox(height: Spacing.sm),
-          SizedBox(
-            width: double.infinity,
             child: OutlinedButton(
-              onPressed: center.isRegistered ? onRequestOnSite : null,
+              onPressed: (center.isOpen && center.onsiteServiceEnabled) ? onRequestOnSite : null,
               child: const Text('Request On-site Service'),
             ),
           ),
@@ -2172,150 +2356,7 @@ class _OverviewTab extends StatelessWidget {
   }
 }
 
-class _DirectionsTab extends StatelessWidget {
-  const _DirectionsTab({
-    required this.center,
-    required this.userLocation,
-    required this.onNavigate,
-    required this.onGetDirections,
-  });
-
-  final ServiceCenter center;
-  final LatLng? userLocation;
-  final void Function(ServiceCenter center) onNavigate;
-  final void Function(ServiceCenter center) onGetDirections;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        Spacing.lg,
-        Spacing.md,
-        Spacing.lg,
-        Spacing.lg,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.trip_origin,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: Spacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Your location',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      userLocation != null
-                          ? 'Current position'
-                          : 'Location unavailable',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 19, top: 4, bottom: 4),
-            child: Container(width: 2, height: 24, color: AppColors.border),
-          ),
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.danger.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.location_on,
-                  color: AppColors.danger,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: Spacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      center.name,
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      center.subtitle,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Spacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: userLocation != null
-                      ? () => onGetDirections(center)
-                      : null,
-                  icon: const Icon(Icons.route, size: 20),
-                  label: const Text('Show Route'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                  ),
-                ),
-              ),
-              const SizedBox(width: Spacing.md),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => onNavigate(center),
-                  icon: const Icon(Icons.directions, size: 20),
-                  label: const Text('Google Maps'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.secondary,
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+// Directions tab removed (route is shown in-map when Navigate is tapped).
 
 ServiceCenter? _getSelectedCenter(ServiceLocatorState state) {
   if (state.selectedCenterId == null) return null;

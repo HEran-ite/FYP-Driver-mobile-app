@@ -12,6 +12,8 @@ class AppointmentModel {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.garageName,
+    this.vehicleName,
   });
 
   final String id;
@@ -23,7 +25,31 @@ class AppointmentModel {
   final String createdAt;
   final String updatedAt;
 
+  final String? garageName;
+  final String? vehicleName;
+
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
+    String? garageName = json['garageName']?.toString();
+
+    String? vehicleName;
+    final vehicle = json['vehicle'];
+    if (vehicle is Map<String, dynamic>) {
+      final make = vehicle['make']?.toString();
+      final model = vehicle['model']?.toString();
+      final year = vehicle['year'];
+      final yearStr = year != null ? year.toString() : null;
+      final parts = <String>[];
+      if ((make ?? '').isNotEmpty) parts.add(make!.trim());
+      if ((model ?? '').isNotEmpty) parts.add(model!.trim());
+      if ((yearStr ?? '').isNotEmpty) parts.add(yearStr!.trim());
+      if (parts.isNotEmpty) {
+        vehicleName = parts.join(' ');
+      } else {
+        final plate = vehicle['plateNumber']?.toString();
+        if ((plate ?? '').isNotEmpty) vehicleName = plate!.trim();
+      }
+    }
+
     return AppointmentModel(
       id: json['id'] as String,
       driverId: json['driverId'] as String,
@@ -33,6 +59,8 @@ class AppointmentModel {
       status: json['status'] as String,
       createdAt: json['createdAt'] as String,
       updatedAt: json['updatedAt'] as String,
+      garageName: garageName,
+      vehicleName: vehicleName,
     );
   }
 
@@ -46,6 +74,8 @@ class AppointmentModel {
       status: _parseStatus(status),
       createdAt: DateTime.parse(createdAt),
       updatedAt: DateTime.parse(updatedAt),
+      garageName: garageName,
+      vehicleName: vehicleName,
     );
   }
 

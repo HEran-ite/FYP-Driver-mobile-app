@@ -20,14 +20,16 @@ class AppointmentsLoadRequested extends AppointmentsEvent {
 class AppointmentBookRequested extends AppointmentsEvent {
   const AppointmentBookRequested({
     required this.garageId,
+    required this.vehicleId,
     required this.scheduledAt,
     required this.serviceDescription,
   });
   final String garageId;
+  final String vehicleId;
   final DateTime scheduledAt;
   final String serviceDescription;
   @override
-  List<Object?> get props => [garageId, scheduledAt, serviceDescription];
+  List<Object?> get props => [garageId, vehicleId, scheduledAt, serviceDescription];
 }
 
 class AppointmentRescheduleRequested extends AppointmentsEvent {

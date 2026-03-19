@@ -8,13 +8,17 @@ import '../../../maps/presentation/bloc/directions_bloc.dart';
 import '../../../maps/presentation/bloc/map_bloc.dart';
 import '../../../maps/presentation/bloc/places_bloc.dart';
 import '../bloc/service_locator_bloc.dart';
-import '../bloc/service_locator_event.dart';
 import 'service_map_page.dart';
 
 class ServiceLocatorPageWrapper extends StatelessWidget {
   final String? initialCenterId;
+  final bool autoNavigate;
 
-  const ServiceLocatorPageWrapper({super.key, this.initialCenterId});
+  const ServiceLocatorPageWrapper({
+    super.key,
+    this.initialCenterId,
+    this.autoNavigate = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +26,7 @@ class ServiceLocatorPageWrapper extends StatelessWidget {
       providers: [
         BlocProvider(create: (_) => getIt<MapBloc>()),
         BlocProvider(
-          create: (_) => getIt<ServiceLocatorBloc>()
-            ..add(const InitializeServiceLocator()),
+          create: (_) => getIt<ServiceLocatorBloc>(),
         ),
         BlocProvider(
           create: (_) =>
@@ -32,7 +35,10 @@ class ServiceLocatorPageWrapper extends StatelessWidget {
         BlocProvider(create: (_) => getIt<PlacesBloc>()),
         BlocProvider(create: (_) => getIt<DirectionsBloc>()),
       ],
-      child: ServiceMapPage(initialCenterId: initialCenterId),
+      child: ServiceMapPage(
+        initialCenterId: initialCenterId,
+        autoNavigate: autoNavigate,
+      ),
     );
   }
 }

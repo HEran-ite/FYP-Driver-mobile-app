@@ -25,7 +25,8 @@ class DriverDashboardPage extends StatelessWidget {
       appBar: const NavAppBar(title: 'CarCare', notificationCount: 3),
       body: SafeArea(
         child: BlocProvider(
-          create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
+          create: (_) =>
+              getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
           child: const _DashboardBody(),
         ),
       ),
@@ -46,7 +47,7 @@ class DriverDashboardPage extends StatelessWidget {
           elevation: 0,
           shape: const CircleBorder(),
           onPressed: () {},
-          child: const ImageIcon(AssetImage('assets/images/ai_icon.png')),
+          child: const ImageIcon(AssetImage('assets/images/ai_Icon.png')),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
@@ -77,7 +78,8 @@ class _DashboardBodyState extends State<_DashboardBody> {
     setState(() => _dropdownOpen = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final box = _vehicleCardKey.currentContext?.findRenderObject() as RenderBox?;
+      final box =
+          _vehicleCardKey.currentContext?.findRenderObject() as RenderBox?;
       if (box == null) return;
       final offset = box.localToGlobal(Offset.zero);
       final size = box.size;
@@ -119,20 +121,29 @@ class _DashboardBodyState extends State<_DashboardBody> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.lg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Spacing.lg,
+        vertical: Spacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           BlocBuilder<VehiclesBloc, VehiclesState>(
             buildWhen: (prev, curr) =>
                 prev is VehiclesLoading != curr is VehiclesLoading ||
-                (prev is VehiclesLoaded && curr is VehiclesLoaded && prev.vehicles != curr.vehicles),
+                (prev is VehiclesLoaded &&
+                    curr is VehiclesLoaded &&
+                    prev.vehicles != curr.vehicles),
             builder: (context, state) {
-              final vehicles = state is VehiclesLoaded ? state.vehicles : <Vehicle>[];
+              final vehicles = state is VehiclesLoaded
+                  ? state.vehicles
+                  : <Vehicle>[];
               final displayed = vehicles.isEmpty
                   ? null
-                  : vehicles.where((v) => v.id == _selectedVehicleId).firstOrNull ??
-                      (vehicles.isNotEmpty ? vehicles.first : null);
+                  : vehicles
+                            .where((v) => v.id == _selectedVehicleId)
+                            .firstOrNull ??
+                        (vehicles.isNotEmpty ? vehicles.first : null);
               return KeyedSubtree(
                 key: _vehicleCardKey,
                 child: _VehicleCard(
@@ -229,7 +240,9 @@ class _VehicleCard extends StatelessWidget {
                   const SizedBox(height: Spacing.xs),
                   Text(
                     plate,
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -237,7 +250,9 @@ class _VehicleCard extends StatelessWidget {
             Icon(
               vehicles.isEmpty
                   ? Icons.add_rounded
-                  : (dropdownOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded),
+                  : (dropdownOpen
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded),
               color: AppColors.textSecondary,
             ),
           ],
@@ -282,7 +297,10 @@ class _VehicleDropdownList extends StatelessWidget {
               InkWell(
                 onTap: () => onSelect(v),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Spacing.md,
+                    vertical: Spacing.sm,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -290,9 +308,15 @@ class _VehicleDropdownList extends StatelessWidget {
                         height: 40,
                         decoration: BoxDecoration(
                           color: AppColors.surfaceMuted,
-                          borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
+                          borderRadius: BorderRadius.circular(
+                            BorderRadiusValues.lg,
+                          ),
                         ),
-                        child: const Icon(Icons.directions_car_rounded, color: AppColors.secondary, size: 22),
+                        child: const Icon(
+                          Icons.directions_car_rounded,
+                          color: AppColors.secondary,
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: Spacing.md),
                       Expanded(
@@ -302,17 +326,25 @@ class _VehicleDropdownList extends StatelessWidget {
                           children: [
                             Text(
                               v.displayName,
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                             Text(
                               v.plateNumber,
-                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       if (selectedId == v.id)
-                        const Icon(Icons.check, color: AppColors.secondary, size: 20),
+                        const Icon(
+                          Icons.check,
+                          color: AppColors.secondary,
+                          size: 20,
+                        ),
                     ],
                   ),
                 ),
@@ -347,7 +379,9 @@ class _VehicleHealthSection extends StatelessWidget {
         children: [
           Text(
             'Vehicle Health',
-            style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary),
+            style: AppTextStyles.titleSmall.copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: Spacing.md),
           Row(
@@ -433,7 +467,9 @@ class _MaintenanceRemindersSection extends StatelessWidget {
       children: [
         Text(
           'Maintenance Reminders',
-          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.titleSmall.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: Spacing.md),
         const _ReminderCard(
@@ -516,7 +552,12 @@ class _ReminderCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: Spacing.xs),
-                Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -553,7 +594,9 @@ class _QuickActionsSection extends StatelessWidget {
       children: [
         Text(
           'Quick Actions',
-          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.titleSmall.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: Spacing.md),
         Column(
@@ -679,7 +722,9 @@ class _OutlinedActionButton extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
-                    style: AppTextStyles.buttonMedium.copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.buttonMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
                 const Icon(
@@ -726,7 +771,9 @@ class _FilledActionButton extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
-                    style: AppTextStyles.buttonMedium.copyWith(color: AppColors.secondary),
+                    style: AppTextStyles.buttonMedium.copyWith(
+                      color: AppColors.secondary,
+                    ),
                   ),
                 ),
                 const Icon(
@@ -753,7 +800,9 @@ class _RecentActivitySection extends StatelessWidget {
       children: [
         Text(
           'Recent Activity',
-          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.titleSmall.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: Spacing.md),
         Container(
@@ -829,7 +878,12 @@ class _ActivityRow extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Spacing.xs),
-            Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+            Text(
+              subtitle,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
       ],

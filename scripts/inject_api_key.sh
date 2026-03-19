@@ -39,6 +39,11 @@ if [ -f "$LPROP" ]; then
       sed -i '' "s|^GOOGLE_MAPS_API_KEY=.*|GOOGLE_MAPS_API_KEY=$KEY|" "$LPROP"
     fi
   else
+    # Ensure file ends with a newline before appending.
+    tail -c 1 "$LPROP" | read -r _ || true
+    if [ -n "$(tail -c 1 "$LPROP")" ]; then
+      echo "" >> "$LPROP"
+    fi
     echo "GOOGLE_MAPS_API_KEY=$KEY" >> "$LPROP"
   fi
   echo "Updated android/local.properties with GOOGLE_MAPS_API_KEY"

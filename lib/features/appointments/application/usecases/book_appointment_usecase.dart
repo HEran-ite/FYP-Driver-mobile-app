@@ -9,11 +9,13 @@ class BookAppointmentUseCase {
 
   Future<Appointment> call({
     required String garageId,
+    required String vehicleId,
     required DateTime scheduledAt,
     required String serviceDescription,
   }) =>
       _repository.book(
         garageId: garageId,
+        vehicleId: vehicleId,
         scheduledAt: scheduledAt,
         serviceDescription: serviceDescription,
       );
