@@ -2,6 +2,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/dimensions.dart';
@@ -133,7 +134,9 @@ class _VehicleDetailView extends StatelessWidget {
                 _VehicleInformationCard(vehicle: vehicle),
                 const SizedBox(height: Spacing.lg),
                 _DocumentsCard(
+                  insuranceDocumentUrl: vehicle.insuranceDocumentUrl,
                   insuranceExpiresAt: vehicle.insuranceExpiresAt,
+                  registrationDocumentUrl: vehicle.registrationDocumentUrl,
                   registrationExpiresAt: vehicle.registrationExpiresAt,
                 ),
                 const SizedBox(height: Spacing.xl),
@@ -359,11 +362,15 @@ class _InfoRow extends StatelessWidget {
 
 class _DocumentsCard extends StatelessWidget {
   const _DocumentsCard({
+    this.insuranceDocumentUrl,
     this.insuranceExpiresAt,
+    this.registrationDocumentUrl,
     this.registrationExpiresAt,
   });
 
+  final String? insuranceDocumentUrl;
   final DateTime? insuranceExpiresAt;
+  final String? registrationDocumentUrl;
   final DateTime? registrationExpiresAt;
 
   static String _formatDate(DateTime d) {
@@ -379,6 +386,10 @@ class _DocumentsCard extends StatelessWidget {
     final registrationText = registrationExpiresAt != null
         ? 'Valid - Expires ${_formatDate(registrationExpiresAt!)}'
         : '—';
+
+    final hasInsuranceDoc = (insuranceDocumentUrl ?? '').trim().isNotEmpty;
+    final hasRegistrationDoc = (registrationDocumentUrl ?? '').trim().isNotEmpty;
+    final hasAnyDoc = hasInsuranceDoc || hasRegistrationDoc;
 
     return Container(
       width: double.infinity,
@@ -436,7 +447,14 @@ class _DocumentsCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: hasAnyDoc
+                  ? () => _showDocumentsSheet(
+                        context,
+                        insuranceUrl: hasInsuranceDoc ? insuranceDocumentUrl!.trim() : null,
+                        registrationUrl:
+                            hasRegistrationDoc ? registrationDocumentUrl!.trim() : null,
+                      )
+                  : null,
               icon: const Icon(Icons.folder_open_outlined, size: 18),
               label: const Text('View Documents'),
               style: OutlinedButton.styleFrom(
@@ -448,6 +466,78 @@ class _DocumentsCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  static Future<void> _showDocumentsSheet(
+    BuildContext context, {
+    required String? insuranceUrl,
+    required String? registrationUrl,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        Future<void> open(String url) async {
+          final uri = Uri.tryParse(url);
+          if (uri == null) return;
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Documents',
+                  style: AppTextStyles.titleMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: Spacing.md),
+                if (insuranceUrl != null)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.shield_outlined),
+                    title: const Text('Insurance Document'),
+                    subtitle: Text(
+                      insuranceUrl,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                    ),
+                    trailing: const Icon(Icons.open_in_new),
+                    onTap: () => open(insuranceUrl),
+                  ),
+                if (registrationUrl != null)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.description_outlined),
+                    title: const Text('Registration Document'),
+                    subtitle: Text(
+                      registrationUrl,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                    ),
+                    trailing: const Icon(Icons.open_in_new),
+                    onTap: () => open(registrationUrl),
+                  ),
+                if (insuranceUrl == null && registrationUrl == null)
+                  Text(
+                    'No documents available.',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

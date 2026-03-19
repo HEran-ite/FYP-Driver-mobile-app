@@ -53,6 +53,7 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
     try {
       final appointment = await _book(
         garageId: event.garageId,
+        vehicleId: event.vehicleId,
         scheduledAt: event.scheduledAt,
         serviceDescription: event.serviceDescription,
       );

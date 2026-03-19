@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme/app_theme.dart';
 import 'injection/service_locator.dart';
@@ -24,6 +25,7 @@ import 'features/vehicles/domain/entities/vehicle.dart';
 import 'features/vehicles/presentation/pages/add_vehicle_page.dart';
 import 'features/vehicles/presentation/pages/vehicle_detail_page.dart';
 import 'features/vehicles/presentation/pages/vehicles_list_page.dart';
+import 'features/onboarding/presentation/pages/onboarding_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,9 +67,8 @@ class App extends StatelessWidget {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,
-        initialRoute: '/',
+        home: const _RootLandingPage(),
         routes: {
-          '/': (context) => const AuthGatePage(),
           '/login': (context) => const LoginPage(),
           '/signup': (context) => const SignupPage(),
           '/profile': (context) => const ProfilePage(),
@@ -75,8 +76,18 @@ class App extends StatelessWidget {
           '/services': (context) => const ServiceLocatorPage(),
           '/services/map': (context) {
             final args = ModalRoute.of(context)?.settings.arguments;
-            final initialCenterId = args is String ? args : null;
-            return ServiceLocatorPageWrapper(initialCenterId: initialCenterId);
+            String? initialCenterId;
+            bool autoNavigate = false;
+            if (args is String) {
+              initialCenterId = args;
+            } else if (args is Map) {
+              initialCenterId = args['centerId']?.toString();
+              autoNavigate = args['autoNavigate'] == true;
+            }
+            return ServiceLocatorPageWrapper(
+              initialCenterId: initialCenterId,
+              autoNavigate: autoNavigate,
+            );
           },
           '/vehicles': (context) => const VehiclesListPage(),
           '/vehicles/detail': (context) {
@@ -95,3 +106,46 @@ class App extends StatelessWidget {
     );
   }
 }
+
+/// Decides whether to show onboarding or go straight to auth gate.
+class _RootLandingPage extends StatefulWidget {
+  const _RootLandingPage();
+
+  @override
+  State<_RootLandingPage> createState() => _RootLandingPageState();
+}
+
+class _RootLandingPageState extends State<_RootLandingPage> {
+  bool _checking = true;
+  bool _showOnboarding = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed = prefs.getBool('onboarding_v2_completed') ?? false;
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _showOnboarding = !completed;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checking) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_showOnboarding) {
+      return const OnboardingPage();
+    }
+    return const AuthGatePage();
+  }
+}
+

@@ -14,7 +14,9 @@ class ServiceCenterModel {
     required this.distanceMiles,
     required this.isOpen,
     required this.isRegistered,
+    required this.onsiteServiceEnabled,
     required this.services,
+    required this.availabilitySlots,
   });
 
   final String id;
@@ -27,7 +29,9 @@ class ServiceCenterModel {
   final double distanceMiles;
   final bool isOpen;
   final bool isRegistered;
+  final bool onsiteServiceEnabled;
   final List<String> services;
+  final List<GarageAvailabilitySlotModel> availabilitySlots;
 
   factory ServiceCenterModel.fromJson(Map<String, dynamic> json) {
     final servicesList = json['services'];
@@ -36,6 +40,20 @@ class ServiceCenterModel {
       for (final e in servicesList) {
         if (e is String) services.add(e);
         else if (e is Map && e['name'] != null) services.add(e['name'].toString());
+      }
+    }
+    // Prefer dedicated availability payload; fallback to nearby's availabilitySlots.
+    final slotsRaw = json['availability'] ?? json['availabilitySlots'];
+    final slots = <GarageAvailabilitySlotModel>[];
+    if (slotsRaw is List) {
+      for (final e in slotsRaw) {
+        if (e is Map) {
+          slots.add(
+            GarageAvailabilitySlotModel.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          );
+        }
       }
     }
     return ServiceCenterModel(
@@ -49,7 +67,9 @@ class ServiceCenterModel {
       distanceMiles: _toDouble(json['distanceMiles'] ?? json['distance'], 0.0),
       isOpen: json['isOpen'] == true,
       isRegistered: json['isRegistered'] == true,
+      onsiteServiceEnabled: json['onsiteServiceEnabled'] == true,
       services: services,
+      availabilitySlots: slots,
     );
   }
 
@@ -80,6 +100,36 @@ class ServiceCenterModel {
         distanceMiles: distanceMiles,
         isOpen: isOpen,
         isRegistered: isRegistered,
+        onsiteServiceEnabled: onsiteServiceEnabled,
         services: services,
+        availabilitySlots: availabilitySlots
+            .map(
+              (s) => GarageAvailabilitySlot(
+                dayOfWeek: s.dayOfWeek,
+                startMinute: s.startMinute,
+                endMinute: s.endMinute,
+              ),
+            )
+            .toList(),
       );
+}
+
+class GarageAvailabilitySlotModel {
+  final String dayOfWeek;
+  final int startMinute;
+  final int endMinute;
+
+  const GarageAvailabilitySlotModel({
+    required this.dayOfWeek,
+    required this.startMinute,
+    required this.endMinute,
+  });
+
+  factory GarageAvailabilitySlotModel.fromJson(Map<String, dynamic> json) {
+    return GarageAvailabilitySlotModel(
+      dayOfWeek: json['dayOfWeek']?.toString() ?? 'MONDAY',
+      startMinute: ServiceCenterModel._toInt(json['startMinute'], 0),
+      endMinute: ServiceCenterModel._toInt(json['endMinute'], 0),
+    );
+  }
 }
