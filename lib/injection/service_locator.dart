@@ -1,5 +1,6 @@
 library;
 
+import 'package:flutter/scheduler.dart';
 import 'package:get_it/get_it.dart';
 
 import '../core/network/api_client.dart';
@@ -18,6 +19,7 @@ import '../features/auth/application/usecases/logout_usecase.dart';
 import '../features/auth/application/usecases/signup_usecase.dart';
 import '../features/auth/application/usecases/update_profile_usecase.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
+import '../features/auth/presentation/bloc/auth_event.dart';
 import '../features/appointments/data/repositories/appointment_repository_impl.dart';
 import '../features/appointments/domain/repositories/appointment_repository.dart';
 import '../features/appointments/application/usecases/book_appointment_usecase.dart';
@@ -64,7 +66,15 @@ Future<void> setupServiceLocator() async {
 
   // API client (token from auth local so login/signup work without token)
   getIt.registerLazySingleton<ApiClient>(
-    () => ApiClient(getToken: getIt<AuthLocalDataSource>().getToken),
+    () => ApiClient(
+      getToken: getIt<AuthLocalDataSource>().getToken,
+      clearSession: () => getIt<AuthLocalDataSource>().clear(),
+      onSessionExpired: () {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          getIt<AuthBloc>().add(const AuthSessionInvalidated());
+        });
+      },
+    ),
   );
 
   // Auth remote
@@ -90,8 +100,8 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton(() => CheckAuthUseCase(getIt<AuthRepository>()));
   getIt.registerLazySingleton(() => UpdateProfileUseCase(getIt<AuthRepository>()));
 
-  // Auth BLoC (factory so each screen can have its own if needed)
-  getIt.registerFactory(
+  // Auth BLoC (singleton so API 401 handler updates the same instance as [BlocProvider])
+  getIt.registerLazySingleton(
     () => AuthBloc(
       loginUseCase: getIt<LoginUseCase>(),
       signupUseCase: getIt<SignupUseCase>(),

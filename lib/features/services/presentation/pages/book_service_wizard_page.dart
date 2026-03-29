@@ -23,9 +23,20 @@ import '../widgets/service_text_formatter.dart';
 import 'service_locator_page.dart';
 
 class BookServiceWizardPage extends StatefulWidget {
-  const BookServiceWizardPage({super.key, required this.center});
+  const BookServiceWizardPage({
+    super.key,
+    required this.center,
+    this.isOnsite = false,
+    this.serviceLatitude,
+    this.serviceLongitude,
+  });
 
   final ServiceCenter center;
+
+  /// On-site flow: same booking API with [isOnsite] and driver coordinates as service location.
+  final bool isOnsite;
+  final double? serviceLatitude;
+  final double? serviceLongitude;
 
   @override
   State<BookServiceWizardPage> createState() => _BookServiceWizardPageState();
@@ -152,7 +163,10 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
         backgroundColor: AppColors.background,
         body: SafeArea(
           child: _bookedAppointment != null
-              ? _SuccessView(appointment: _bookedAppointment!)
+              ? _SuccessView(
+                  appointment: _bookedAppointment!,
+                  isOnsite: widget.isOnsite,
+                )
               : _WizardBody(),
         ),
         ),
@@ -171,6 +185,7 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
         : _step == _WizardStep.selectServices
             ? 'Select Services'
             : 'Pick Date & Time';
+    final flowTitle = widget.isOnsite ? 'On-site Service' : 'Book Service';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,7 +212,7 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
-                      'Book Service',
+                      flowTitle,
                       style: AppTextStyles.headlineSmall.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
@@ -261,6 +276,22 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
   Future<void> _confirmBooking() async {
     if (_selectedVehicleId == null || _selectedDate == null || _selectedTime == null) return;
 
+    if (widget.isOnsite) {
+      final lat = widget.serviceLatitude;
+      final lng = widget.serviceLongitude;
+      if (lat == null || lng == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Your location is required for on-site service. Enable location and try again.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     final date = _selectedDate!;
     final time = _selectedTime!;
     final scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -274,6 +305,9 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
             vehicleId: _selectedVehicleId!,
             scheduledAt: scheduledAt,
             serviceDescription: description,
+            isOnsite: widget.isOnsite,
+            serviceLatitude: widget.serviceLatitude,
+            serviceLongitude: widget.serviceLongitude,
           ),
         );
   }
@@ -402,6 +436,25 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: Spacing.md),
+          if (widget.isOnsite)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Spacing.md),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.home_repair_service, color: AppColors.secondary, size: 22),
+                  const SizedBox(width: Spacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Service location will be sent as your current position when you requested on-site service.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (_availabilityLoading)
             const Center(
               child: Padding(
@@ -517,7 +570,7 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
                   borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
                 ),
               ),
-              child: const Text('Confirm Booking'),
+              child: Text(widget.isOnsite ? 'Confirm on-site request' : 'Confirm Booking'),
             ),
           ),
           const SizedBox(height: Spacing.lg),
@@ -823,9 +876,13 @@ class _PickerField extends StatelessWidget {
 }
 
 class _SuccessView extends StatelessWidget {
-  const _SuccessView({required this.appointment});
+  const _SuccessView({
+    required this.appointment,
+    this.isOnsite = false,
+  });
 
   final Appointment appointment;
+  final bool isOnsite;
 
   @override
   Widget build(BuildContext context) {
@@ -848,7 +905,7 @@ class _SuccessView extends StatelessWidget {
                   const Icon(Icons.check_circle, size: 66, color: Colors.white),
                   const SizedBox(height: Spacing.md),
                   Text(
-                    'Booking Confirmed!',
+                    isOnsite ? 'On-site request sent!' : 'Booking Confirmed!',
                     style: AppTextStyles.headlineSmall.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -856,7 +913,9 @@ class _SuccessView extends StatelessWidget {
                   ),
                   const SizedBox(height: Spacing.sm),
                   Text(
-                    'Your appointment has been successfully scheduled',
+                    isOnsite
+                        ? 'The garage has your request with service at your location.'
+                        : 'Your appointment has been successfully scheduled',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: Colors.white.withOpacity(0.9),
@@ -880,7 +939,7 @@ class _SuccessView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Appointment Details',
+                    isOnsite ? 'Request details' : 'Appointment Details',
                     style: AppTextStyles.titleSmall.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
@@ -896,7 +955,9 @@ class _SuccessView extends StatelessWidget {
                   _DetailRow(
                     icon: Icons.location_on_outlined,
                     label: 'Location',
-                    value: appointment.garageName ?? 'Garage',
+                    value: isOnsite
+                        ? 'Your location (when requested)'
+                        : (appointment.garageName ?? 'Garage'),
                   ),
                 ],
               ),

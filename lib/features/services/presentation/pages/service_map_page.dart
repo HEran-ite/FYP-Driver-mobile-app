@@ -231,7 +231,7 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
       setState(() => _showSearchResults = true);
       context.read<PlacesBloc>().add(
         PlacesSearchRequested(
-          query: query,
+            query: query,
           lat: userLocation?.latitude,
           lng: userLocation?.longitude,
         ),
@@ -282,7 +282,7 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
     context.read<DirectionsBloc>().add(
       DirectionsRequested(
         origin: userLocation,
-        destination: LatLng(center.latitude, center.longitude),
+          destination: LatLng(center.latitude, center.longitude),
       ),
     );
   }
@@ -444,12 +444,12 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                 );
                 directionsBloc.add(
                   DirectionsRequested(
-                    origin: origin,
-                    destination: destination,
-                    mode: mode,
+                  origin: origin,
+                  destination: destination,
+                  mode: mode,
                   ),
                 );
-              },
+          },
           onClose: () => Navigator.of(ctx).pop(),
         ),
       ),
@@ -583,19 +583,19 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
 
       polylines.add(
         Polyline(
-          polylineId: PolylineId('route_$i'),
-          points: points,
+        polylineId: PolylineId('route_$i'),
+        points: points,
           color: isSelected
               ? AppColors.primary
               : AppColors.textSecondary.withOpacity(0.5),
-          width: isSelected ? 5 : 3,
+        width: isSelected ? 5 : 3,
           patterns: isSelected
               ? []
               : [PatternItem.dash(10), PatternItem.gap(5)],
-          zIndex: isSelected ? 2 : 1,
-          onTap: () {
-            context.read<DirectionsBloc>().add(RouteAlternativeSelected(i));
-          },
+        zIndex: isSelected ? 2 : 1,
+        onTap: () {
+          context.read<DirectionsBloc>().add(RouteAlternativeSelected(i));
+        },
         ),
       );
     }
@@ -625,6 +625,30 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
     );
   }
 
+  void _onRequestOnSite(ServiceCenter center, LatLng? userLocation) {
+    if (userLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Turn on location access so we can send the garage your position for on-site service.',
+          ),
+        ),
+      );
+      return;
+    }
+    context.read<ServiceLocatorBloc>().add(const ClearSelectedCenter());
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BookServiceWizardPage(
+          center: center,
+          isOnsite: true,
+          serviceLatitude: userLocation.latitude,
+          serviceLongitude: userLocation.longitude,
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _positionSubscription?.cancel();
@@ -638,39 +662,39 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
     return BlocProvider(
       create: (_) => getIt<AppointmentsBloc>()..add(const AppointmentsLoadRequested()),
       child: MultiBlocListener(
-        listeners: [
-          BlocListener<AppointmentsBloc, AppointmentsState>(
-            listener: (context, state) {
-              if (state is AppointmentActionSuccess) {
-                ScaffoldMessenger.of(context).showSnackBar(
+      listeners: [
+        BlocListener<AppointmentsBloc, AppointmentsState>(
+          listener: (context, state) {
+            if (state is AppointmentActionSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Appointment booked successfully'),
                   ),
-                );
-              }
-              if (state is AppointmentsFailure) {
+              );
+            }
+            if (state is AppointmentsFailure) {
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(SnackBar(content: Text(state.message)));
-              }
-            },
-          ),
-          BlocListener<DirectionsBloc, DirectionsState>(
-            listener: (context, state) {
-              _buildRoutePolylines(state);
-            },
-          ),
-          BlocListener<PlacesBloc, PlacesState>(
-            listener: (context, state) {
-              if (state.selectedPlace != null) {
-                final place = state.selectedPlace!;
+            }
+          },
+        ),
+        BlocListener<DirectionsBloc, DirectionsState>(
+          listener: (context, state) {
+            _buildRoutePolylines(state);
+          },
+        ),
+        BlocListener<PlacesBloc, PlacesState>(
+          listener: (context, state) {
+            if (state.selectedPlace != null) {
+              final place = state.selectedPlace!;
               final userLocation = context.read<MapBloc>().state.userLocation;
-                _mapController?.animateCamera(
-                  CameraUpdate.newLatLngZoom(
-                    LatLng(place.latitude, place.longitude),
-                    15,
-                  ),
-                );
+              _mapController?.animateCamera(
+                CameraUpdate.newLatLngZoom(
+                  LatLng(place.latitude, place.longitude),
+                  15,
+                ),
+              );
               if (userLocation != null) {
                 context.read<DirectionsBloc>().add(
                   DirectionsRequested(
@@ -685,11 +709,11 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                   ),
                 );
               }
-              }
-            },
-          ),
-        ],
-        child: AnnotatedRegion<SystemUiOverlayStyle>(
+            }
+          },
+        ),
+      ],
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
@@ -708,47 +732,47 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                 a.liveTracking != b.liveTracking,
             builder: (context, mapState) {
               return BlocBuilder<ServiceLocatorBloc, ServiceLocatorState>(
-                builder: (context, state) {
+          builder: (context, state) {
                   if (state.isLoading && state.centers.isEmpty) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (state.failureMessage != null && state.centers.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(Spacing.lg),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 48,
-                              color: AppColors.danger,
-                            ),
-                            const SizedBox(height: Spacing.md),
-                            Text(
-                              state.failureMessage!,
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state.failureMessage != null && state.centers.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(Spacing.lg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: AppColors.danger,
+                      ),
+                      const SizedBox(height: Spacing.md),
+                      Text(
+                        state.failureMessage!,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                    );
-                  }
+                    ],
+                  ),
+                ),
+              );
+            }
                   if (!mapState.locationResolved) {
-                    return const Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: Spacing.md),
-                          Text('Getting your location...'),
-                        ],
-                      ),
-                    );
-                  }
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: Spacing.md),
+                    Text('Getting your location...'),
+                  ],
+                ),
+              );
+            }
 
                   final userLocation = mapState.userLocation;
                   _maybeAutoNavigate(state, userLocation);
@@ -766,37 +790,37 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                         placesState,
                         userLocation,
                       );
-                      return Stack(
-                        children: [
-                          GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: initialTarget,
-                          zoom: 13,
-                        ),
-                        markers: markers,
-                        polylines: _routePolylines,
+            return Stack(
+              children: [
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: initialTarget,
+                    zoom: 13,
+                  ),
+                  markers: markers,
+                  polylines: _routePolylines,
                         mapType: mapState.mapType,
-                        myLocationEnabled: true,
-                        myLocationButtonEnabled: false,
-                        compassEnabled: true,
-                        zoomControlsEnabled: false,
-                        zoomGesturesEnabled: true,
-                        scrollGesturesEnabled: true,
-                        tiltGesturesEnabled: true,
-                        rotateGesturesEnabled: true,
-                        onMapCreated: (controller) {
-                          _mapController = controller;
-                        },
-                        onCameraIdle: () {},
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  compassEnabled: true,
+                  zoomControlsEnabled: false,
+                  zoomGesturesEnabled: true,
+                  scrollGesturesEnabled: true,
+                  tiltGesturesEnabled: true,
+                  rotateGesturesEnabled: true,
+                  onMapCreated: (controller) {
+                    _mapController = controller;
+                  },
+                  onCameraIdle: () {},
                         onTap: (pos) => _onMapTappedForRoute(pos, userLocation),
                         onLongPress: _onMapLongPress,
-                      ),
-                          Positioned(
-                        left: 0,
-                        right: 0,
-                        top: 0,
-                        child: SafeArea(
-                          bottom: false,
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  child: SafeArea(
+                    bottom: false,
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(
                               Spacing.sm,
@@ -804,25 +828,25 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                               Spacing.sm,
                               Spacing.sm,
                             ),
-                            child: Column(
-                              children: [
+                    child: Column(
+                      children: [
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
+                            children: [
                                 _GoogleMapsIconButton(
                                   icon: Icons.arrow_back,
-                                  onPressed: () => Navigator.of(context).pop(),
-                                ),
-                                const SizedBox(width: Spacing.sm),
-                                Expanded(
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                              const SizedBox(width: Spacing.sm),
+                              Expanded(
                                   child: _GoogleMapsSearchBar(
-                                    controller: _searchController,
-                                    focusNode: _searchFocusNode,
+                                  controller: _searchController,
+                                  focusNode: _searchFocusNode,
                                     onChanged: (q) =>
                                         _onSearchChanged(q, userLocation),
-                                    onClear: _clearDirections,
-                                  ),
+                                  onClear: _clearDirections,
                                 ),
+                              ),
                                   ],
                                 ),
                                 const SizedBox(height: Spacing.sm),
@@ -841,70 +865,70 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
                                       ),
-                                    ),
-                                  ),
-                              ],
-                            ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                          if (_showSearchResults)
-                        Positioned(
-                          left: Spacing.md,
-                          right: Spacing.md,
+                    ),
+                  ),
+                ),
+                if (_showSearchResults)
+                  Positioned(
+                    left: Spacing.md,
+                    right: Spacing.md,
                           top: 100,
-                          child: _SearchResultsOverlay(
-                            onPlaceSelected: _onPlaceSelected,
-                            onClear: _clearDirections,
-                            searchController: _searchController,
-                          ),
-                        ),
-                          BlocBuilder<DirectionsBloc, DirectionsState>(
-                        builder: (context, dirState) {
-                          if (dirState.hasRoute) {
-                            return Positioned(
-                              left: Spacing.md,
-                              right: Spacing.md,
-                              top: 80,
-                              child: _RouteInfoCard(
-                                route: dirState.selectedRoute!,
-                                alternativesCount: dirState.routes.length,
-                                selectedIndex: dirState.selectedRouteIndex,
-                                travelMode: dirState.travelMode,
-                                onAlternativeSelected: (i) {
+                    child: _SearchResultsOverlay(
+                      onPlaceSelected: _onPlaceSelected,
+                      onClear: _clearDirections,
+                      searchController: _searchController,
+                    ),
+                  ),
+                BlocBuilder<DirectionsBloc, DirectionsState>(
+                  builder: (context, dirState) {
+                    if (dirState.hasRoute) {
+                      return Positioned(
+                        left: Spacing.md,
+                        right: Spacing.md,
+                        top: 80,
+                        child: _RouteInfoCard(
+                          route: dirState.selectedRoute!,
+                          alternativesCount: dirState.routes.length,
+                          selectedIndex: dirState.selectedRouteIndex,
+                          travelMode: dirState.travelMode,
+                          onAlternativeSelected: (i) {
                                   context.read<DirectionsBloc>().add(
                                     RouteAlternativeSelected(i),
                                   );
-                                },
-                                onTravelModeChanged: (mode) {
+                          },
+                          onTravelModeChanged: (mode) {
                                   context.read<DirectionsBloc>().add(
                                     TravelModeChanged(mode),
                                   );
-                                },
-                                onClose: _clearDirections,
-                              ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                          Positioned(
-                        right: Spacing.md,
+                          },
+                          onClose: _clearDirections,
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+                Positioned(
+                  right: Spacing.md,
                         bottom: 200,
-                        child: Column(
+                  child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
+                    children: [
                             _GoogleMapsLayersButton(
                               onTap: () =>
                                   _openLayersSheet(context, mapState.mapType),
-                            ),
-                            const SizedBox(height: Spacing.xs),
+                      ),
+                      const SizedBox(height: Spacing.xs),
                             _GoogleMapsZoomControl(
                               onZoomIn: _zoomIn,
                               onZoomOut: _zoomOut,
-                            ),
-                            const SizedBox(height: Spacing.xs),
+                      ),
+                      const SizedBox(height: Spacing.xs),
                             _GoogleMapsIconButton(
                               icon: Icons.my_location,
                               size: 48,
@@ -917,14 +941,14 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                               size: 48,
                               onPressed: _openDirectionSheet,
                               filled: true,
-                            ),
-                          ],
-                        ),
                       ),
+                    ],
+                  ),
+                ),
                           if (_selectedCategory == _MapCategory.garages &&
                               state.selectedCenterId != null &&
                               _userSelectedCenter)
-                        Positioned(
+                Positioned(
                           left: 0,
                           right: 0,
                           bottom: 0,
@@ -943,21 +967,22 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                                     c,
                                     userLocation,
                                   ),
-                              onRequestOnSite: () {},
+                              onRequestOnSite: (c) =>
+                                  _onRequestOnSite(c, userLocation),
                               onClose: () => context
                                   .read<ServiceLocatorBloc>()
                                   .add(const ClearSelectedCenter()),
                             ),
-                          ),
-                        ),
-                        ],
+                  ),
+                ),
+              ],
                       );
                     },
                   );
                 },
-              );
-            },
-          ),
+            );
+          },
+        ),
         ),
         ),
       ),
@@ -1225,7 +1250,7 @@ class _GoogleMapsSearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 48,
-      decoration: BoxDecoration(
+          decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
@@ -1508,32 +1533,32 @@ class _DirectionSheetState extends State<_DirectionSheet> {
               Spacing.xs,
             ),
             child: Row(
-              children: [
-                IconButton(
+            children: [
+              IconButton(
                   icon: const Icon(
                     Icons.arrow_back,
                     size: 24,
                     color: AppColors.textPrimary,
                   ),
-                  onPressed: widget.onClose,
-                  style: IconButton.styleFrom(
+                onPressed: widget.onClose,
+                style: IconButton.styleFrom(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(
                         BorderRadiusValues.lg,
                       ),
                     ),
-                  ),
                 ),
-                Expanded(
-                  child: Text(
-                    'Directions',
+              ),
+              Expanded(
+                child: Text(
+                  'Directions',
                     style: AppTextStyles.titleMedium.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+                  textAlign: TextAlign.center,
                 ),
+              ),
                 IconButton(
                   icon: const Icon(
                     Icons.close,
@@ -1553,10 +1578,10 @@ class _DirectionSheetState extends State<_DirectionSheet> {
             ),
           ),
           Expanded(
-            child: BlocListener<PlacesBloc, PlacesState>(
-              listener: (context, state) {
-                if (state.selectedPlace != null) {
-                  final place = state.selectedPlace!;
+              child: BlocListener<PlacesBloc, PlacesState>(
+                listener: (context, state) {
+                  if (state.selectedPlace != null) {
+                    final place = state.selectedPlace!;
                   if (_lastSearchWasOrigin) {
                     final latLng = LatLng(place.latitude, place.longitude);
                     setState(() {
@@ -1603,28 +1628,28 @@ class _DirectionSheetState extends State<_DirectionSheet> {
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Container(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
                                 width: 32,
                                 height: 32,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.2),
-                                  shape: BoxShape.circle,
-                                ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
                                 child: const Icon(
                                   Icons.trip_origin,
                                   color: AppColors.primary,
                                   size: 18,
                                 ),
-                              ),
-                              const SizedBox(width: Spacing.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
+                        ),
+                        const SizedBox(width: Spacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
                                       'From',
                                       style: AppTextStyles.labelSmall.copyWith(
                                         color: AppColors.textSecondary,
@@ -1700,10 +1725,10 @@ class _DirectionSheetState extends State<_DirectionSheet> {
                                     ],
                                   ],
                                 ),
-                              ),
-                            ],
-                          ),
-                          Padding(
+                        ),
+                      ],
+                    ),
+                    Padding(
                             padding: const EdgeInsets.only(
                               left: 15,
                               top: 6,
@@ -1714,60 +1739,60 @@ class _DirectionSheetState extends State<_DirectionSheet> {
                               height: 20,
                               color: AppColors.border,
                             ),
-                          ),
-                          Row(
-                            children: [
-                              Container(
+                    ),
+                    Row(
+                      children: [
+                        Container(
                                 width: 32,
                                 height: 32,
-                                decoration: BoxDecoration(
-                                  color: AppColors.danger.withOpacity(0.2),
-                                  shape: BoxShape.circle,
-                                ),
+                          decoration: BoxDecoration(
+                            color: AppColors.danger.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
                                 child: const Icon(
                                   Icons.location_on,
                                   color: AppColors.danger,
                                   size: 18,
                                 ),
-                              ),
-                              const SizedBox(width: Spacing.md),
-                              Expanded(
-                                child: TextField(
-                                  controller: _destinationController,
-                                  focusNode: _destinationFocusNode,
+                        ),
+                        const SizedBox(width: Spacing.md),
+                        Expanded(
+                          child: TextField(
+                            controller: _destinationController,
+                            focusNode: _destinationFocusNode,
                                   decoration: InputDecoration(
-                                    hintText: 'Choose destination',
+                              hintText: 'Choose destination',
                                     hintStyle: TextStyle(
                                       color: AppColors.textSecondary,
                                       fontSize: 15,
                                     ),
-                                    border: InputBorder.none,
-                                    isDense: true,
+                              border: InputBorder.none,
+                              isDense: true,
                                     contentPadding: EdgeInsets.zero,
-                                  ),
+                            ),
                                   style: AppTextStyles.bodyMedium.copyWith(
                                     fontWeight: FontWeight.w500,
                                     color: AppColors.textPrimary,
                                   ),
-                                  onChanged: (q) {
-                                    if (q.isEmpty) {
+                            onChanged: (q) {
+                              if (q.isEmpty) {
                                       context.read<PlacesBloc>().add(
                                         const PlacesCleared(),
                                       );
-                                    } else {
+                              } else {
                                       _lastSearchWasOrigin = false;
                                       context.read<PlacesBloc>().add(
                                         PlacesSearchRequested(
-                                          query: q,
-                                          lat: widget.userLocation?.latitude,
-                                          lng: widget.userLocation?.longitude,
+                                      query: q,
+                                      lat: widget.userLocation?.latitude,
+                                      lng: widget.userLocation?.longitude,
                                         ),
                                       );
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
+                              }
+                            },
+                          ),
+                        ),
+                      ],
                           ),
                         ],
                       ),
@@ -1900,29 +1925,29 @@ class _DirectionSheetState extends State<_DirectionSheet> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _TransportChip(
-                            icon: Icons.directions_car,
+                      children: [
+                        _TransportChip(
+                          icon: Icons.directions_car,
                             label: 'Drive',
-                            isSelected: _travelMode == TravelMode.driving,
+                          isSelected: _travelMode == TravelMode.driving,
                             onTap: () => setState(
                               () => _travelMode = TravelMode.driving,
                             ),
-                          ),
-                          const SizedBox(width: Spacing.sm),
-                          _TransportChip(
-                            icon: Icons.directions_transit,
-                            label: 'Transit',
-                            isSelected: _travelMode == TravelMode.transit,
+                        ),
+                        const SizedBox(width: Spacing.sm),
+                        _TransportChip(
+                          icon: Icons.directions_transit,
+                          label: 'Transit',
+                          isSelected: _travelMode == TravelMode.transit,
                             onTap: () => setState(
                               () => _travelMode = TravelMode.transit,
                             ),
-                          ),
-                          const SizedBox(width: Spacing.sm),
-                          _TransportChip(
-                            icon: Icons.directions_walk,
+                        ),
+                        const SizedBox(width: Spacing.sm),
+                        _TransportChip(
+                          icon: Icons.directions_walk,
                             label: 'Walk',
-                            isSelected: _travelMode == TravelMode.walking,
+                          isSelected: _travelMode == TravelMode.walking,
                             onTap: () => setState(
                               () => _travelMode = TravelMode.walking,
                             ),
@@ -1986,15 +2011,15 @@ class _TransportChip extends StatelessWidget {
               size: 20,
               color: isSelected ? AppColors.primary : AppColors.textSecondary,
             ),
-            const SizedBox(width: Spacing.sm),
-            Text(
-              label,
+          const SizedBox(width: Spacing.sm),
+          Text(
+            label,
               style: AppTextStyles.labelSmall.copyWith(
                 color: isSelected ? AppColors.primary : AppColors.textSecondary,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
-            ),
-          ],
+          ),
+        ],
         ),
       ),
     );
@@ -2029,10 +2054,10 @@ class _SearchResultsOverlay extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: BlocBuilder<PlacesBloc, PlacesState>(
-          builder: (context, state) {
-            if (state.isSearching) {
-              return const Padding(
-                padding: EdgeInsets.all(Spacing.lg),
+        builder: (context, state) {
+          if (state.isSearching) {
+            return const Padding(
+              padding: EdgeInsets.all(Spacing.lg),
                 child: Center(
                   child: SizedBox(
                     width: 24,
@@ -2043,59 +2068,59 @@ class _SearchResultsOverlay extends StatelessWidget {
                     ),
                   ),
                 ),
-              );
-            }
-            if (state.error != null) {
-              return Padding(
-                padding: const EdgeInsets.all(Spacing.lg),
-                child: Row(
-                  children: [
+            );
+          }
+          if (state.error != null) {
+            return Padding(
+              padding: const EdgeInsets.all(Spacing.lg),
+              child: Row(
+                children: [
                     Icon(
                       Icons.error_outline,
                       color: AppColors.danger,
                       size: 20,
                     ),
-                    const SizedBox(width: Spacing.sm),
-                    Expanded(
-                      child: Text(
-                        state.error!,
+                  const SizedBox(width: Spacing.sm),
+                  Expanded(
+                    child: Text(
+                      state.error!,
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.danger,
                         ),
-                      ),
                     ),
-                  ],
-                ),
-              );
-            }
-            if (state.predictions.isEmpty) {
-              return Padding(
+                  ),
+                ],
+              ),
+            );
+          }
+          if (state.predictions.isEmpty) {
+            return Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: Spacing.lg,
                   vertical: Spacing.xl,
                 ),
-                child: Center(
-                  child: Text(
-                    'No results found. Try a different search.',
+              child: Center(
+                child: Text(
+                  'No results found. Try a different search.',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+                  textAlign: TextAlign.center,
                 ),
-              );
-            }
-            return ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 250),
-              child: ListView.separated(
-                shrinkWrap: true,
-                padding: EdgeInsets.zero,
-                itemCount: state.predictions.length,
+              ),
+            );
+          }
+          return ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 250),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: state.predictions.length,
                 separatorBuilder: (_, __) =>
                     const Divider(height: 1, color: AppColors.border),
-                itemBuilder: (context, index) {
-                  final p = state.predictions[index];
-                  return ListTile(
+              itemBuilder: (context, index) {
+                final p = state.predictions[index];
+                return ListTile(
                     leading: const Icon(
                       Icons.location_on_outlined,
                       color: AppColors.textSecondary,
@@ -2115,15 +2140,15 @@ class _SearchResultsOverlay extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    onTap: () {
-                      searchController.text = p.mainText;
-                      onPlaceSelected(p.placeId);
-                    },
-                  );
-                },
-              ),
-            );
-          },
+                  onTap: () {
+                    searchController.text = p.mainText;
+                    onPlaceSelected(p.placeId);
+                  },
+                );
+              },
+            ),
+          );
+        },
         ),
       ),
     );
@@ -2135,7 +2160,7 @@ class _SelectedCenterBottomSheet extends StatelessWidget {
   final void Function(ServiceCenter center) onBook;
   final void Function(ServiceCenter center) onNavigate;
   final void Function(ServiceCenter center) onGetDirections;
-  final VoidCallback onRequestOnSite;
+  final void Function(ServiceCenter center) onRequestOnSite;
   final VoidCallback? onClose;
 
   const _SelectedCenterBottomSheet({
@@ -2179,7 +2204,7 @@ class _SelectedCenterBottomSheet extends StatelessWidget {
                     child: Text(
                       'Garage details',
                       style: AppTextStyles.labelLarge.copyWith(
-                        fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -2192,18 +2217,18 @@ class _SelectedCenterBottomSheet extends StatelessWidget {
                       ),
                   ],
                 ),
-              SizedBox(
-                height: 280,
+                SizedBox(
+                  height: 280,
                 child: _OverviewTab(
-                  center: center,
-                  onBook: onBook,
-                  onNavigate: onNavigate,
-                  onGetDirections: onGetDirections,
-                  onRequestOnSite: onRequestOnSite,
-                ),
-              ),
-              ],
-            ),
+                        center: center,
+                        onBook: onBook,
+                        onNavigate: onNavigate,
+                        onGetDirections: onGetDirections,
+                        onRequestOnSite: onRequestOnSite,
+                      ),
+                      ),
+                    ],
+          ),
         );
       },
     );
@@ -2223,7 +2248,7 @@ class _OverviewTab extends StatelessWidget {
   final void Function(ServiceCenter center) onBook;
   final void Function(ServiceCenter center) onNavigate;
   final void Function(ServiceCenter center) onGetDirections;
-  final VoidCallback onRequestOnSite;
+  final void Function(ServiceCenter center) onRequestOnSite;
 
   @override
   Widget build(BuildContext context) {
@@ -2346,7 +2371,9 @@ class _OverviewTab extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: (center.isOpen && center.onsiteServiceEnabled) ? onRequestOnSite : null,
+              onPressed: (center.isOpen && center.onsiteServiceEnabled)
+                  ? () => onRequestOnSite(center)
+                  : null,
               child: const Text('Request On-site Service'),
             ),
           ),

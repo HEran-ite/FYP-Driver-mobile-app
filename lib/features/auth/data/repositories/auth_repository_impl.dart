@@ -2,6 +2,7 @@ library;
 
 import 'dart:convert';
 
+import '../../../../core/auth/jwt_expiry.dart';
 import '../../domain/entities/driver_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
@@ -62,6 +63,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<DriverUser?> getCurrentUser() async {
+    final token = await _local.getToken();
+    if (isJwtExpired(token)) {
+      await _local.clear();
+      return null;
+    }
     final json = await _local.getUserJson();
     if (json == null) return null;
     final map = _jsonToMap(json);

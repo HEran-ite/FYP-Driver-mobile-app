@@ -43,6 +43,11 @@ class LogoutRequested extends AuthEvent {
   const LogoutRequested();
 }
 
+/// Local session was cleared (e.g. expired token); sync BLoC without calling logout API.
+class AuthSessionInvalidated extends AuthEvent {
+  const AuthSessionInvalidated();
+}
+
 class UpdateProfileRequested extends AuthEvent {
   const UpdateProfileRequested(this.user);
   final DriverUser user;

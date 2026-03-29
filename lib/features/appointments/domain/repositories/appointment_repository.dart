@@ -10,6 +10,9 @@ abstract class AppointmentRepository {
     required String vehicleId,
     required DateTime scheduledAt,
     required String serviceDescription,
+    bool isOnsite = false,
+    double? serviceLatitude,
+    double? serviceLongitude,
   });
   Future<Appointment> reschedule({required String id, required DateTime scheduledAt});
   Future<Appointment> cancel(String id);

@@ -6,14 +6,20 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/auth/jwt_expiry.dart';
+import 'core/navigation/app_navigator.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/data/datasources/auth_local_datasource.dart';
 import 'injection/service_locator.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_event.dart';
+import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/auth/presentation/pages/auth_gate_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/profile_page.dart';
@@ -57,11 +63,66 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Use MaterialApp.router when go_router is set up
-    // return MaterialApp.router(
     return BlocProvider<AuthBloc>(
       create: (_) => getIt<AuthBloc>(),
+      child: const _AuthSessionShell(),
+    );
+  }
+}
+
+/// Clears expired JWT on resume and sends the user to login when auth drops from authenticated.
+class _AuthSessionShell extends StatefulWidget {
+  const _AuthSessionShell();
+
+  @override
+  State<_AuthSessionShell> createState() => _AuthSessionShellState();
+}
+
+class _AuthSessionShellState extends State<_AuthSessionShell>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _clearIfJwtExpired();
+    }
+  }
+
+  Future<void> _clearIfJwtExpired() async {
+    final token = await getIt<AuthLocalDataSource>().getToken();
+    if (!isJwtExpired(token)) return;
+    await getIt<AuthLocalDataSource>().clear();
+    if (!mounted) return;
+    context.read<AuthBloc>().add(const AuthSessionInvalidated());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (prev, curr) =>
+          curr is AuthUnauthenticated && prev is AuthAuthenticated,
+      listener: (context, state) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          final nav = appNavigatorKey.currentState;
+          nav?.pushAndRemoveUntil(
+            MaterialPageRoute<void>(builder: (_) => const LoginPage()),
+            (route) => false,
+          );
+        });
+      },
       child: MaterialApp(
+        navigatorKey: appNavigatorKey,
         title: 'Driver Assistance',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
