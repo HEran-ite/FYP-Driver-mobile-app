@@ -10,6 +10,9 @@ abstract class AppointmentRemoteDataSource {
     required String vehicleId,
     required String scheduledAt,
     required String serviceDescription,
+    bool isOnsite = false,
+    double? serviceLatitude,
+    double? serviceLongitude,
   });
   Future<AppointmentModel> reschedule({
     required String id,

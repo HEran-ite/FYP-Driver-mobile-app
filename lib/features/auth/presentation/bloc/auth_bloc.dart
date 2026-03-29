@@ -28,6 +28,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LoginRequested>(_onLogin);
     on<SignupRequested>(_onSignup);
     on<LogoutRequested>(_onLogout);
+    on<AuthSessionInvalidated>(_onSessionInvalidated);
     on<UpdateProfileRequested>(_onUpdateProfile);
   }
 
@@ -88,6 +89,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     await _logout();
+    emit(const AuthUnauthenticated());
+  }
+
+  void _onSessionInvalidated(
+    AuthSessionInvalidated event,
+    Emitter<AuthState> emit,
+  ) {
     emit(const AuthUnauthenticated());
   }
 

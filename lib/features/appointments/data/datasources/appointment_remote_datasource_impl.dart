@@ -36,15 +36,26 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
     required String vehicleId,
     required String scheduledAt,
     required String serviceDescription,
+    bool isOnsite = false,
+    double? serviceLatitude,
+    double? serviceLongitude,
   }) async {
+    final data = <String, dynamic>{
+      'garageId': garageId,
+      'vehicleId': vehicleId,
+      'scheduledAt': scheduledAt,
+      'serviceDescription': serviceDescription,
+    };
+    if (isOnsite &&
+        serviceLatitude != null &&
+        serviceLongitude != null) {
+      data['isOnsite'] = true;
+      data['latitude'] = serviceLatitude;
+      data['longitude'] = serviceLongitude;
+    }
     final res = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.driverAppointments,
-      data: {
-        'garageId': garageId,
-        'vehicleId': vehicleId,
-        'scheduledAt': scheduledAt,
-        'serviceDescription': serviceDescription,
-      },
+      data: data,
     );
     return AppointmentModel.fromJson(res.data!);
   }

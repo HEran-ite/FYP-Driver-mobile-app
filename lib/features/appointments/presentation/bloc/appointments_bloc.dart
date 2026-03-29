@@ -56,6 +56,9 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
         vehicleId: event.vehicleId,
         scheduledAt: event.scheduledAt,
         serviceDescription: event.serviceDescription,
+        isOnsite: event.isOnsite,
+        serviceLatitude: event.serviceLatitude,
+        serviceLongitude: event.serviceLongitude,
       );
       emit(AppointmentActionSuccess(appointment));
     } catch (e) {
