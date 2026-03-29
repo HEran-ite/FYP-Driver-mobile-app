@@ -9,12 +9,20 @@ class BookAppointmentUseCase {
 
   Future<Appointment> call({
     required String garageId,
+    required String vehicleId,
     required DateTime scheduledAt,
     required String serviceDescription,
+    bool isOnsite = false,
+    double? serviceLatitude,
+    double? serviceLongitude,
   }) =>
       _repository.book(
         garageId: garageId,
+        vehicleId: vehicleId,
         scheduledAt: scheduledAt,
         serviceDescription: serviceDescription,
+        isOnsite: isOnsite,
+        serviceLatitude: serviceLatitude,
+        serviceLongitude: serviceLongitude,
       );
 }

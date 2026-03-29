@@ -24,13 +24,21 @@ class AppointmentRepositoryImpl implements AppointmentRepository {
   @override
   Future<Appointment> book({
     required String garageId,
+    required String vehicleId,
     required DateTime scheduledAt,
     required String serviceDescription,
+    bool isOnsite = false,
+    double? serviceLatitude,
+    double? serviceLongitude,
   }) async {
     final model = await _remote.book(
       garageId: garageId,
+      vehicleId: vehicleId,
       scheduledAt: scheduledAt.toIso8601String(),
       serviceDescription: serviceDescription,
+      isOnsite: isOnsite,
+      serviceLatitude: serviceLatitude,
+      serviceLongitude: serviceLongitude,
     );
     return model.toEntity();
   }

@@ -6,13 +6,20 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/auth/jwt_expiry.dart';
+import 'core/navigation/app_navigator.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/data/datasources/auth_local_datasource.dart';
 import 'injection/service_locator.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_event.dart';
+import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/auth/presentation/pages/auth_gate_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/profile_page.dart';
@@ -24,6 +31,7 @@ import 'features/vehicles/domain/entities/vehicle.dart';
 import 'features/vehicles/presentation/pages/add_vehicle_page.dart';
 import 'features/vehicles/presentation/pages/vehicle_detail_page.dart';
 import 'features/vehicles/presentation/pages/vehicles_list_page.dart';
+import 'features/onboarding/presentation/pages/onboarding_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,19 +63,73 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Use MaterialApp.router when go_router is set up
-    // return MaterialApp.router(
     return BlocProvider<AuthBloc>(
       create: (_) => getIt<AuthBloc>(),
+      child: const _AuthSessionShell(),
+    );
+  }
+}
+
+/// Clears expired JWT on resume and sends the user to login when auth drops from authenticated.
+class _AuthSessionShell extends StatefulWidget {
+  const _AuthSessionShell();
+
+  @override
+  State<_AuthSessionShell> createState() => _AuthSessionShellState();
+}
+
+class _AuthSessionShellState extends State<_AuthSessionShell>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _clearIfJwtExpired();
+    }
+  }
+
+  Future<void> _clearIfJwtExpired() async {
+    final token = await getIt<AuthLocalDataSource>().getToken();
+    if (!isJwtExpired(token)) return;
+    await getIt<AuthLocalDataSource>().clear();
+    if (!mounted) return;
+    context.read<AuthBloc>().add(const AuthSessionInvalidated());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (prev, curr) =>
+          curr is AuthUnauthenticated && prev is AuthAuthenticated,
+      listener: (context, state) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          final nav = appNavigatorKey.currentState;
+          nav?.pushAndRemoveUntil(
+            MaterialPageRoute<void>(builder: (_) => const LoginPage()),
+            (route) => false,
+          );
+        });
+      },
       child: MaterialApp(
+        navigatorKey: appNavigatorKey,
         title: 'Driver Assistance',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,
-        initialRoute: '/',
+        home: const _RootLandingPage(),
         routes: {
-          '/': (context) => const AuthGatePage(),
           '/login': (context) => const LoginPage(),
           '/signup': (context) => const SignupPage(),
           '/profile': (context) => const ProfilePage(),
@@ -75,8 +137,18 @@ class App extends StatelessWidget {
           '/services': (context) => const ServiceLocatorPage(),
           '/services/map': (context) {
             final args = ModalRoute.of(context)?.settings.arguments;
-            final initialCenterId = args is String ? args : null;
-            return ServiceLocatorPageWrapper(initialCenterId: initialCenterId);
+            String? initialCenterId;
+            bool autoNavigate = false;
+            if (args is String) {
+              initialCenterId = args;
+            } else if (args is Map) {
+              initialCenterId = args['centerId']?.toString();
+              autoNavigate = args['autoNavigate'] == true;
+            }
+            return ServiceLocatorPageWrapper(
+              initialCenterId: initialCenterId,
+              autoNavigate: autoNavigate,
+            );
           },
           '/vehicles': (context) => const VehiclesListPage(),
           '/vehicles/detail': (context) {
@@ -95,3 +167,46 @@ class App extends StatelessWidget {
     );
   }
 }
+
+/// Decides whether to show onboarding or go straight to auth gate.
+class _RootLandingPage extends StatefulWidget {
+  const _RootLandingPage();
+
+  @override
+  State<_RootLandingPage> createState() => _RootLandingPageState();
+}
+
+class _RootLandingPageState extends State<_RootLandingPage> {
+  bool _checking = true;
+  bool _showOnboarding = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed = prefs.getBool('onboarding_v2_completed') ?? false;
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _showOnboarding = !completed;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checking) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_showOnboarding) {
+      return const OnboardingPage();
+    }
+    return const AuthGatePage();
+  }
+}
+

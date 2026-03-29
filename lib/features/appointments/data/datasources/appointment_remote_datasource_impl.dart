@@ -33,16 +33,29 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
   @override
   Future<AppointmentModel> book({
     required String garageId,
+    required String vehicleId,
     required String scheduledAt,
     required String serviceDescription,
+    bool isOnsite = false,
+    double? serviceLatitude,
+    double? serviceLongitude,
   }) async {
+    final data = <String, dynamic>{
+      'garageId': garageId,
+      'vehicleId': vehicleId,
+      'scheduledAt': scheduledAt,
+      'serviceDescription': serviceDescription,
+    };
+    if (isOnsite &&
+        serviceLatitude != null &&
+        serviceLongitude != null) {
+      data['isOnsite'] = true;
+      data['latitude'] = serviceLatitude;
+      data['longitude'] = serviceLongitude;
+    }
     final res = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.driverAppointments,
-      data: {
-        'garageId': garageId,
-        'scheduledAt': scheduledAt,
-        'serviceDescription': serviceDescription,
-      },
+      data: data,
     );
     return AppointmentModel.fromJson(res.data!);
   }
@@ -52,7 +65,7 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
     required String id,
     required String scheduledAt,
   }) async {
-    final res = await _dio.put<Map<String, dynamic>>(
+    final res = await _dio.patch<Map<String, dynamic>>(
       ApiEndpoints.driverAppointmentReschedule(id),
       data: {'scheduledAt': scheduledAt},
     );
@@ -61,7 +74,7 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
 
   @override
   Future<AppointmentModel> cancel(String id) async {
-    final res = await _dio.put<Map<String, dynamic>>(
+    final res = await _dio.patch<Map<String, dynamic>>(
       ApiEndpoints.driverAppointmentCancel(id),
     );
     return AppointmentModel.fromJson(res.data!);

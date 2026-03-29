@@ -7,8 +7,12 @@ abstract class AppointmentRemoteDataSource {
   Future<AppointmentModel> getById(String id);
   Future<AppointmentModel> book({
     required String garageId,
+    required String vehicleId,
     required String scheduledAt,
     required String serviceDescription,
+    bool isOnsite = false,
+    double? serviceLatitude,
+    double? serviceLongitude,
   });
   Future<AppointmentModel> reschedule({
     required String id,

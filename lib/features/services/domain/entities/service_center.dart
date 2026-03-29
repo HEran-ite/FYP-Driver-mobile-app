@@ -13,7 +13,9 @@ class ServiceCenter extends Equatable {
   final double distanceMiles;
   final bool isOpen;
   final bool isRegistered; // Registered via our app
+  final bool onsiteServiceEnabled;
   final List<String> services;
+  final List<GarageAvailabilitySlot> availabilitySlots;
 
   const ServiceCenter({
     required this.id,
@@ -26,7 +28,9 @@ class ServiceCenter extends Equatable {
     required this.distanceMiles,
     required this.isOpen,
     required this.isRegistered,
+    required this.onsiteServiceEnabled,
     required this.services,
+    this.availabilitySlots = const [],
   });
 
   @override
@@ -41,7 +45,24 @@ class ServiceCenter extends Equatable {
         distanceMiles,
         isOpen,
         isRegistered,
+        onsiteServiceEnabled,
         services,
+        availabilitySlots,
       ];
+}
+
+class GarageAvailabilitySlot extends Equatable {
+  final String dayOfWeek; // MONDAY..SUNDAY
+  final int startMinute; // 0..1439
+  final int endMinute; // 0..1439
+
+  const GarageAvailabilitySlot({
+    required this.dayOfWeek,
+    required this.startMinute,
+    required this.endMinute,
+  });
+
+  @override
+  List<Object?> get props => [dayOfWeek, startMinute, endMinute];
 }
 

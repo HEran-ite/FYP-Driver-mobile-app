@@ -34,6 +34,8 @@ class ApiEndpoints {
   // ----- Legacy / other (keep for future use) -----
   static const String profile = '/profile';
   static const String nearbyServices = '/services/nearby';
+  static String garageAvailabilitySlots(String garageId) =>
+      '/garages/availability/$garageId/slots';
   static const String notifications = '/notifications';
 
   ApiEndpoints._();

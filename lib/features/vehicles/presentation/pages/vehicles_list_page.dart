@@ -37,7 +37,7 @@ class _VehiclesListView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       drawer: const AppDrawer(currentRoute: '/vehicles'),
-      appBar: const NavAppBar(title: 'CarCare', notificationCount: 3),
+      appBar: const NavAppBar(showActions: false),
       body: SafeArea(
         child: BlocBuilder<VehiclesBloc, VehiclesState>(
           builder: (context, state) {
@@ -141,8 +141,20 @@ class _VehiclesListView extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: const _VehiclesListBottomNavBar(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.of(context).pushNamed('/vehicles/add');
+          if (context.mounted) {
+            context.read<VehiclesBloc>().add(const VehiclesLoadRequested());
+          }
+        },
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: AppColors.secondary),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
+
 }
 
 class _VehicleListCard extends StatelessWidget {

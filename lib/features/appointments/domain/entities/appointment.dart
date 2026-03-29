@@ -21,6 +21,8 @@ class Appointment extends Equatable {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.garageName,
+    this.vehicleName,
   });
 
   final String id;
@@ -32,7 +34,13 @@ class Appointment extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Extra fields returned by the backend (enriched response).
+  final String? garageName;
+
+  /// Display name of the vehicle selected for this appointment.
+  final String? vehicleName;
+
   @override
   List<Object?> get props =>
-      [id, driverId, garageId, scheduledAt, serviceDescription, status, createdAt, updatedAt];
+      [id, driverId, garageId, scheduledAt, serviceDescription, status, createdAt, updatedAt, garageName, vehicleName];
 }
