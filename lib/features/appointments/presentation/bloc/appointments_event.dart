@@ -23,6 +23,7 @@ class AppointmentBookRequested extends AppointmentsEvent {
     required this.vehicleId,
     required this.scheduledAt,
     required this.serviceDescription,
+    required this.garageServiceIds,
     this.isOnsite = false,
     this.serviceLatitude,
     this.serviceLongitude,
@@ -31,6 +32,9 @@ class AppointmentBookRequested extends AppointmentsEvent {
   final String vehicleId;
   final DateTime scheduledAt;
   final String serviceDescription;
+
+  /// Garage service row IDs (required by driver-garage-backend booking API).
+  final List<String> garageServiceIds;
 
   /// When true, [serviceLatitude] / [serviceLongitude] are sent as the service location (driver).
   final bool isOnsite;
@@ -43,6 +47,7 @@ class AppointmentBookRequested extends AppointmentsEvent {
         vehicleId,
         scheduledAt,
         serviceDescription,
+        garageServiceIds,
         isOnsite,
         serviceLatitude,
         serviceLongitude,

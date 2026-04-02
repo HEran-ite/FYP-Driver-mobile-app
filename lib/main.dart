@@ -24,14 +24,28 @@ import 'features/auth/presentation/pages/auth_gate_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/profile_page.dart';
 import 'features/auth/presentation/pages/signup_page.dart';
+import 'features/community/presentation/bloc/community_bloc.dart';
+import 'features/community/presentation/pages/community_feed_page.dart';
 import 'features/dashboard/presentation/pages/driver_dashboard_page.dart';
+import 'features/maintenance/presentation/bloc/maintenance_bloc.dart';
+import 'features/maintenance/presentation/pages/maintenance_history_page.dart';
+import 'features/maintenance/presentation/pages/maintenance_upcoming_page.dart';
+import 'features/notifications/presentation/bloc/notifications_bloc.dart';
+import 'features/notifications/presentation/bloc/notifications_event.dart';
+import 'features/notifications/presentation/pages/notifications_page.dart';
 import 'features/services/presentation/pages/service_locator_page.dart';
 import 'features/services/presentation/pages/service_locator_page_wrapper.dart';
 import 'features/vehicles/domain/entities/vehicle.dart';
+import 'features/vehicles/presentation/bloc/vehicles_bloc.dart';
+import 'features/vehicles/presentation/bloc/vehicles_event.dart';
 import 'features/vehicles/presentation/pages/add_vehicle_page.dart';
 import 'features/vehicles/presentation/pages/vehicle_detail_page.dart';
 import 'features/vehicles/presentation/pages/vehicles_list_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
+import 'features/education/presentation/bloc/education_bloc.dart';
+import 'features/education/presentation/bloc/education_event.dart';
+import 'features/education/presentation/pages/education_center_page.dart';
+import 'features/education/presentation/pages/education_articles_list_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,8 +77,13 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>(
-      create: (_) => getIt<AuthBloc>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(create: (_) => getIt<AuthBloc>()),
+        BlocProvider<NotificationsBloc>(
+          create: (_) => getIt<NotificationsBloc>()..add(const NotificationsLoadRequested()),
+        ),
+      ],
       child: const _AuthSessionShell(),
     );
   }
@@ -133,6 +152,33 @@ class _AuthSessionShellState extends State<_AuthSessionShell>
           '/login': (context) => const LoginPage(),
           '/signup': (context) => const SignupPage(),
           '/profile': (context) => const ProfilePage(),
+          '/community': (context) => BlocProvider(
+                create: (_) => getIt<CommunityBloc>(),
+                child: const CommunityFeedPage(),
+              ),
+          '/education': (context) => BlocProvider(
+                create: (_) => getIt<EducationBloc>()..add(const EducationLoadRequested()),
+                child: const EducationCenterPage(),
+              ),
+          '/education/all': (context) => EducationArticlesListPage(
+                initialCategory: EducationArticlesListPage.categoryFromArgs(
+                  ModalRoute.of(context)?.settings.arguments,
+                ),
+              ),
+          '/maintenance/upcoming': (context) => MultiBlocProvider(
+                providers: [
+                  BlocProvider(create: (_) => getIt<MaintenanceBloc>()),
+                  BlocProvider(
+                    create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
+                  ),
+                ],
+                child: const MaintenanceUpcomingPage(),
+              ),
+          '/maintenance/history': (context) => BlocProvider(
+                create: (_) => getIt<MaintenanceBloc>(),
+                child: const MaintenanceHistoryPage(),
+              ),
+          '/notifications': (context) => const NotificationsPage(),
           '/driver-dashboard': (context) => const DriverDashboardPage(),
           '/services': (context) => const ServiceLocatorPage(),
           '/services/map': (context) {
@@ -150,7 +196,16 @@ class _AuthSessionShellState extends State<_AuthSessionShell>
               autoNavigate: autoNavigate,
             );
           },
-          '/vehicles': (context) => const VehiclesListPage(),
+          '/vehicles': (context) {
+            final args = ModalRoute.of(context)?.settings.arguments;
+            int? tab;
+            if (args is Map) {
+              final v = args['tab'];
+              if (v is int) tab = v;
+              if (v is String) tab = int.tryParse(v);
+            }
+            return VehiclesListPage(initialTab: tab);
+          },
           '/vehicles/detail': (context) {
             final args = ModalRoute.of(context)?.settings.arguments;
             final id = args is String ? args : '';

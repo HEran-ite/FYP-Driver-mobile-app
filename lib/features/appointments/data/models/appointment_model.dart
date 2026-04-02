@@ -9,6 +9,7 @@ class AppointmentModel {
     required this.garageId,
     required this.scheduledAt,
     required this.serviceDescription,
+    this.services = const [],
     required this.status,
     required this.createdAt,
     required this.updatedAt,
@@ -21,6 +22,7 @@ class AppointmentModel {
   final String garageId;
   final String scheduledAt;
   final String serviceDescription;
+  final List<String> services;
   final String status;
   final String createdAt;
   final String updatedAt;
@@ -56,12 +58,21 @@ class AppointmentModel {
       garageId: json['garageId'] as String,
       scheduledAt: json['scheduledAt'] as String,
       serviceDescription: json['serviceDescription'] as String? ?? '',
+      services: _parseStringList(json['services']),
       status: json['status'] as String,
       createdAt: json['createdAt'] as String,
       updatedAt: json['updatedAt'] as String,
       garageName: garageName,
       vehicleName: vehicleName,
     );
+  }
+
+  static List<String> _parseStringList(dynamic v) {
+    if (v is! List) return const [];
+    return v
+        .map((e) => e?.toString().trim() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   Appointment toEntity() {
@@ -71,6 +82,7 @@ class AppointmentModel {
       garageId: garageId,
       scheduledAt: DateTime.parse(scheduledAt),
       serviceDescription: serviceDescription,
+      services: services,
       status: _parseStatus(status),
       createdAt: DateTime.parse(createdAt),
       updatedAt: DateTime.parse(updatedAt),

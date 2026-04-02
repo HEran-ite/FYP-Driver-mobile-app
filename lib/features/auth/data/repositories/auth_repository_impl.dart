@@ -77,14 +77,24 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> updateProfile(DriverUser user) async {
-    final json = jsonEncode({
-      'id': user.id,
-      'firstName': user.firstName,
-      'lastName': user.lastName,
-      'email': user.email,
-      'phone': user.phone,
-    });
-    await _local.saveUser(json);
+    try {
+      final updated = await _remote.updateProfile(
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+      );
+      await _local.saveUser(_userToJson(updated));
+    } catch (_) {
+      // If backend profile isn't created yet, attempt create then persist.
+      final created = await _remote.createProfile(
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+      );
+      await _local.saveUser(_userToJson(created));
+    }
   }
 
   String _userToJson(DriverResponse d) {

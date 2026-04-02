@@ -45,11 +45,55 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'password': password,
       },
     );
-    return DriverResponse.fromJson(res.data! as Map<String, dynamic>);
+    return DriverResponse.fromJson(res.data!);
   }
 
   @override
   Future<void> logout() async {
     await _dio.post(ApiEndpoints.driverAuthLogout);
+  }
+
+  @override
+  Future<DriverResponse> getProfile() async {
+    final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.driverProfile);
+    return DriverResponse.fromJson(res.data!);
+  }
+
+  @override
+  Future<DriverResponse> createProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.driverProfile,
+      data: {
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'phone': phone,
+      },
+    );
+    return DriverResponse.fromJson(res.data!);
+  }
+
+  @override
+  Future<DriverResponse> updateProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+  }) async {
+    final res = await _dio.put<Map<String, dynamic>>(
+      ApiEndpoints.driverProfile,
+      data: {
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'phone': phone,
+      },
+    );
+    return DriverResponse.fromJson(res.data!);
   }
 }

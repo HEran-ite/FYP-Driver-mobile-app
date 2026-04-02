@@ -10,6 +10,7 @@ abstract class AppointmentRemoteDataSource {
     required String vehicleId,
     required String scheduledAt,
     required String serviceDescription,
+    required List<String> garageServiceIds,
     bool isOnsite = false,
     double? serviceLatitude,
     double? serviceLongitude,

@@ -2,10 +2,27 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+/// A service offered by a garage ([id] from [GarageService] on the backend).
+class GarageOfferedService extends Equatable {
+  const GarageOfferedService({
+    required this.id,
+    required this.name,
+  });
+
+  final String id;
+  final String name;
+
+  bool get canBookWithApi => id.isNotEmpty;
+
+  @override
+  List<Object?> get props => [id, name];
+}
+
 class ServiceCenter extends Equatable {
   final String id;
   final String name;
   final String subtitle;
+  final String phone;
   final double latitude;
   final double longitude;
   final double rating;
@@ -14,13 +31,14 @@ class ServiceCenter extends Equatable {
   final bool isOpen;
   final bool isRegistered; // Registered via our app
   final bool onsiteServiceEnabled;
-  final List<String> services;
+  final List<GarageOfferedService> services;
   final List<GarageAvailabilitySlot> availabilitySlots;
 
   const ServiceCenter({
     required this.id,
     required this.name,
     required this.subtitle,
+    this.phone = '',
     required this.latitude,
     required this.longitude,
     required this.rating,
@@ -38,6 +56,7 @@ class ServiceCenter extends Equatable {
         id,
         name,
         subtitle,
+        phone,
         latitude,
         longitude,
         rating,

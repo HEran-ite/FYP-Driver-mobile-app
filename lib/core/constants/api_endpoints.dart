@@ -31,6 +31,30 @@ class ApiEndpoints {
   static const String driverVehicles = '/driver/vehicles';
   static String driverVehicleById(String id) => '/driver/vehicles/$id';
 
+  // ----- Driver Profile (prefix: /driver) -----
+  static const String driverProfile = '/driver/profile';
+
+  // ----- Driver Community (prefix: /driver/community) -----
+  static const String driverCommunityPosts = '/driver/community/posts';
+
+  // ----- Driver Education (prefix: /driver/education, JWT) -----
+  static const String driverEducation = '/driver/education';
+  static String driverEducationById(String id) => '/driver/education/$id';
+  static const String driverEducationSearch = '/driver/education/search';
+
+  // ----- Driver Maintenance (prefix: /driver/maintenance) -----
+  static const String driverMaintenanceUpcoming = '/driver/maintenance/upcoming';
+  static const String driverMaintenanceHistory = '/driver/maintenance/history';
+  static String driverMaintenanceUpcomingById(String id) =>
+      '/driver/maintenance/upcoming/$id';
+  static String driverMaintenanceHistoryById(String id) =>
+      '/driver/maintenance/history/$id';
+  static String driverMaintenanceUpcomingToggleReminder(String id) =>
+      '/driver/maintenance/upcoming/$id/reminder';
+  static const String driverMaintenanceNotifications = '/driver/maintenance/notifications';
+  static String driverMaintenanceNotificationRead(String id) =>
+      '/driver/maintenance/notifications/$id/read';
+
   // ----- Legacy / other (keep for future use) -----
   static const String profile = '/profile';
   static const String nearbyServices = '/services/nearby';
