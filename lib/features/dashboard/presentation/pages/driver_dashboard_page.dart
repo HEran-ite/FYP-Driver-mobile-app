@@ -9,6 +9,9 @@ import '../../../../core/constants/dimensions.dart';
 import '../../../../core/widgets/app_drawer.dart';
 import '../../../../core/widgets/nav_app_bar.dart';
 import '../../../../injection/service_locator.dart';
+import '../../../maintenance/presentation/bloc/maintenance_bloc.dart';
+import '../../../maintenance/presentation/bloc/maintenance_event.dart';
+import '../../../maintenance/presentation/bloc/maintenance_state.dart';
 import '../../../vehicles/domain/entities/vehicle.dart';
 import '../../../vehicles/presentation/bloc/vehicles_bloc.dart';
 import '../../../vehicles/presentation/bloc/vehicles_event.dart';
@@ -164,7 +167,15 @@ class _DashboardBodyState extends State<_DashboardBody> {
             },
           ),
           const SizedBox(height: Spacing.lg),
-          const _VehicleHealthSection(),
+          BlocBuilder<VehiclesBloc, VehiclesState>(
+            builder: (context, state) {
+              final vehicles = state is VehiclesLoaded ? state.vehicles : const <Vehicle>[];
+              final selected = vehicles.isEmpty
+                  ? null
+                  : vehicles.where((v) => v.id == _selectedVehicleId).firstOrNull ?? vehicles.firstOrNull;
+              return _VehicleHealthSection(selectedVehicleId: selected?.id);
+            },
+          ),
           const SizedBox(height: Spacing.lg),
           const _MaintenanceRemindersSection(),
           const SizedBox(height: Spacing.lg),
@@ -357,56 +368,97 @@ class _VehicleDropdownList extends StatelessWidget {
 }
 
 class _VehicleHealthSection extends StatelessWidget {
-  const _VehicleHealthSection();
+  const _VehicleHealthSection({required this.selectedVehicleId});
+
+  final String? selectedVehicleId;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(Spacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Vehicle Health',
-            style: AppTextStyles.titleSmall.copyWith(
-              color: AppColors.textPrimary,
+    return BlocProvider(
+      create: (_) => getIt<MaintenanceBloc>()..add(const MaintenanceLoadRequested()),
+      child: BlocBuilder<MaintenanceBloc, MaintenanceState>(
+        builder: (context, mState) {
+          final enabledCount = _enabledRemindersForVehicle(
+            mState: mState,
+            vehicleId: selectedVehicleId,
+          );
+          final engine = _clampPct(85 - enabledCount * 5);
+          final brakes = _clampPct(70 - enabledCount * 7);
+          final tires = _clampPct(65 - enabledCount * 9);
+
+          return Container(
+            padding: const EdgeInsets.all(Spacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadow,
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: Spacing.md),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              _HealthIndicator(
-                label: 'Engine',
-                percentage: 85,
-                color: AppColors.success,
-              ),
-              _HealthIndicator(
-                label: 'Brakes',
-                percentage: 50,
-                color: AppColors.pending,
-              ),
-              _HealthIndicator(
-                label: 'Tires',
-                percentage: 25,
-                color: AppColors.danger,
-              ),
-            ],
-          ),
-        ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Vehicle Health',
+                  style: AppTextStyles.titleSmall.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: Spacing.md),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _HealthIndicator(
+                      label: 'Engine',
+                      percentage: engine,
+                      color: _healthColor(engine),
+                    ),
+                    _HealthIndicator(
+                      label: 'Brakes',
+                      percentage: brakes,
+                      color: _healthColor(brakes),
+                    ),
+                    _HealthIndicator(
+                      label: 'Tires',
+                      percentage: tires,
+                      color: _healthColor(tires),
+                    ),
+                  ],
+                ),
+                if (enabledCount > 0) ...[
+                  const SizedBox(height: Spacing.sm),
+                  Text(
+                    'Reminders set: $enabledCount',
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
+  }
+
+  static int _enabledRemindersForVehicle({
+    required MaintenanceState mState,
+    required String? vehicleId,
+  }) {
+    final id = vehicleId?.trim();
+    if (id == null || id.isEmpty) return 0;
+    return mState.upcoming.where((u) => u.vehicleId == id && u.reminderEnabled).length;
+  }
+
+  static int _clampPct(int v) => v.clamp(0, 100);
+
+  static Color _healthColor(int pct) {
+    if (pct >= 75) return AppColors.success;
+    if (pct >= 45) return AppColors.pending;
+    return AppColors.danger;
   }
 }
 
@@ -465,41 +517,107 @@ class _MaintenanceRemindersSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Maintenance Reminders',
-          style: AppTextStyles.titleSmall.copyWith(
-            color: AppColors.textPrimary,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Maintenance Reminders',
+              style: AppTextStyles.titleSmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                '/vehicles',
+                (route) => route.isFirst,
+                arguments: {'tab': 1},
+              ),
+              child: Text(
+                'View all',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: Spacing.md),
-        const _ReminderCard(
-          title: 'Oil Change',
-          subtitle: 'Overdue by 5 days',
-          statusLabel: 'Urgent',
-          statusColor: AppColors.danger,
-          borderColor: AppColors.danger,
-          icon: Icons.oil_barrel_outlined,
-        ),
-        const SizedBox(height: Spacing.sm),
-        const _ReminderCard(
-          title: 'Tire Check',
-          subtitle: 'Due in 3 days',
-          statusLabel: 'Soon',
-          statusColor: AppColors.pending,
-          borderColor: AppColors.pending,
-          icon: Icons.tire_repair_outlined,
-        ),
-        const SizedBox(height: Spacing.sm),
-        const _ReminderCard(
-          title: 'Brake Service',
-          subtitle: 'Due in 2 weeks',
-          statusLabel: 'Good',
-          statusColor: AppColors.success,
-          borderColor: AppColors.success,
-          icon: Icons.build_outlined,
+        BlocProvider(
+          create: (_) => getIt<MaintenanceBloc>()..add(const MaintenanceLoadRequested()),
+          child: BlocBuilder<MaintenanceBloc, MaintenanceState>(
+            builder: (context, state) {
+              final items = state.upcoming.take(3).toList();
+              if (state.loading && items.isEmpty) {
+                return const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()));
+              }
+              if (items.isEmpty) {
+                return Text(
+                  'No reminders yet. Schedule maintenance to get started.',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                );
+              }
+              return Column(
+                children: [
+                  for (int i = 0; i < items.length; i++) ...[
+                    _ReminderCard(
+                      title: items[i].title,
+                      subtitle: _dueText(items[i].scheduledAt),
+                      statusLabel: _statusLabel(items[i].scheduledAt),
+                      statusColor: _statusColor(items[i].scheduledAt),
+                      borderColor: _statusColor(items[i].scheduledAt),
+                      icon: _iconFor(items[i].title),
+                    ),
+                    if (i != items.length - 1) const SizedBox(height: Spacing.sm),
+                  ],
+                ],
+              );
+            },
+          ),
         ),
       ],
     );
+  }
+
+  static String _dueText(DateTime date) {
+    final today = DateTime.now();
+    final d0 = DateTime(today.year, today.month, today.day);
+    final d1 = DateTime(date.year, date.month, date.day);
+    final diff = d1.difference(d0).inDays;
+    if (diff < 0) return 'Overdue by ${diff.abs()} days';
+    if (diff == 0) return 'Due today';
+    if (diff == 1) return 'Due tomorrow';
+    if (diff < 7) return 'Due in $diff days';
+    final weeks = (diff / 7).round();
+    return 'Due in $weeks weeks';
+  }
+
+  static String _statusLabel(DateTime date) {
+    final today = DateTime.now();
+    final d0 = DateTime(today.year, today.month, today.day);
+    final d1 = DateTime(date.year, date.month, date.day);
+    final diff = d1.difference(d0).inDays;
+    if (diff < 0) return 'Urgent';
+    if (diff <= 3) return 'Soon';
+    return 'Good';
+  }
+
+  static Color _statusColor(DateTime date) {
+    final today = DateTime.now();
+    final d0 = DateTime(today.year, today.month, today.day);
+    final d1 = DateTime(date.year, date.month, date.day);
+    final diff = d1.difference(d0).inDays;
+    if (diff < 0) return AppColors.danger;
+    if (diff <= 3) return AppColors.pending;
+    return AppColors.success;
+  }
+
+  static IconData _iconFor(String title) {
+    final t = title.toLowerCase();
+    if (t.contains('oil')) return Icons.oil_barrel_outlined;
+    if (t.contains('tire')) return Icons.tire_repair_outlined;
+    if (t.contains('brake')) return Icons.build_outlined;
+    return Icons.build_outlined;
   }
 }
 
@@ -600,21 +718,42 @@ class _QuickActionsSection extends StatelessWidget {
         ),
         const SizedBox(height: Spacing.md),
         Column(
-          children: const [
+          children: [
             _PrimaryActionButton(
               label: 'Book Service',
               icon: Icons.calendar_today_outlined,
               gradientColors: [AppColors.secondary, AppColors.secondaryDark],
+              onTap: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                '/services',
+                (route) => route.isFirst,
+              ),
             ),
             SizedBox(height: Spacing.sm),
             _OutlinedActionButton(
               label: 'Find Nearby Garage',
               icon: Icons.location_on_outlined,
+              onTap: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                '/services',
+                (route) => route.isFirst,
+              ),
             ),
             SizedBox(height: Spacing.sm),
             _FilledActionButton(
               label: 'Chat with AI Assistant',
               icon: Icons.chat_bubble_outline,
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('AI Assistant is coming soon.')),
+              ),
+            ),
+            const SizedBox(height: Spacing.sm),
+            _OutlinedActionButton(
+              label: 'Maintenance History',
+              icon: Icons.history_rounded,
+              onTap: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                '/vehicles',
+                (route) => route.isFirst,
+                arguments: {'tab': 2},
+              ),
             ),
           ],
         ),
@@ -627,11 +766,13 @@ class _PrimaryActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final List<Color> gradientColors;
+  final VoidCallback? onTap;
 
   const _PrimaryActionButton({
     required this.label,
     required this.icon,
     required this.gradientColors,
+    this.onTap,
   });
 
   @override
@@ -652,7 +793,7 @@ class _PrimaryActionButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
-          onTap: () {},
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: Spacing.lg,
@@ -687,8 +828,9 @@ class _PrimaryActionButton extends StatelessWidget {
 class _OutlinedActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
+  final VoidCallback? onTap;
 
-  const _OutlinedActionButton({required this.label, required this.icon});
+  const _OutlinedActionButton({required this.label, required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -709,7 +851,7 @@ class _OutlinedActionButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
-          onTap: () {},
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: Spacing.lg,
@@ -744,8 +886,9 @@ class _OutlinedActionButton extends StatelessWidget {
 class _FilledActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
+  final VoidCallback? onTap;
 
-  const _FilledActionButton({required this.label, required this.icon});
+  const _FilledActionButton({required this.label, required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -758,7 +901,7 @@ class _FilledActionButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
-          onTap: () {},
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: Spacing.lg,
@@ -790,62 +933,173 @@ class _FilledActionButton extends StatelessWidget {
   }
 }
 
-class _RecentActivitySection extends StatelessWidget {
+class _RecentActivitySection extends StatefulWidget {
   const _RecentActivitySection();
 
   @override
+  State<_RecentActivitySection> createState() => _RecentActivitySectionState();
+}
+
+class _RecentActivitySectionState extends State<_RecentActivitySection> {
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Recent Activity',
-          style: AppTextStyles.titleSmall.copyWith(
-            color: AppColors.textPrimary,
-          ),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
         ),
-        const SizedBox(height: Spacing.md),
-        Container(
-          padding: const EdgeInsets.all(Spacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadow,
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: const [
-              _ActivityRow(
-                icon: Icons.check_circle_rounded,
-                iconColor: AppColors.success,
-                title: 'Oil change completed',
-                subtitle: '2 days ago',
-              ),
-              SizedBox(height: Spacing.sm),
-              _ActivityRow(
-                icon: Icons.event_note_rounded,
-                iconColor: AppColors.pending,
-                title: 'Service appointment booked',
-                subtitle: '1 week ago',
-              ),
-              SizedBox(height: Spacing.sm),
-              _ActivityRow(
-                icon: Icons.add_circle_outline_rounded,
-                iconColor: AppColors.secondary,
-                title: 'Vehicle added',
-                subtitle: '2 weeks ago',
-              ),
-            ],
-          ),
+        BlocProvider(
+          create: (_) => getIt<MaintenanceBloc>()..add(const MaintenanceLoadRequested()),
         ),
       ],
+      child: Builder(
+        builder: (context) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Recent Activity',
+                style: AppTextStyles.titleSmall.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: Spacing.md),
+              Container(
+                padding: const EdgeInsets.all(Spacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadow,
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: BlocBuilder<MaintenanceBloc, MaintenanceState>(
+                  builder: (context, mState) {
+                    return BlocBuilder<VehiclesBloc, VehiclesState>(
+                      builder: (context, vState) {
+                        final items = _buildRecentActivities(
+                          maintenance: mState,
+                          vehicles: vState,
+                        );
+                        if (items.isEmpty && (mState.loading || vState is VehiclesLoading || vState is VehiclesInitial)) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(Spacing.md),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+                        if (items.isEmpty) {
+                          return Text(
+                            'No recent activity yet.',
+                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                          );
+                        }
+                        return Column(
+                          children: [
+                            for (int i = 0; i < items.length; i++) ...[
+                              _ActivityRow(
+                                icon: items[i].icon,
+                                iconColor: items[i].iconColor,
+                                title: items[i].title,
+                                subtitle: items[i].subtitle,
+                              ),
+                              if (i != items.length - 1) const SizedBox(height: Spacing.sm),
+                            ],
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
+
+  List<_ActivityItem> _buildRecentActivities({
+    required MaintenanceState maintenance,
+    required VehiclesState vehicles,
+  }) {
+    final now = DateTime.now();
+    final items = <_ActivityItem>[];
+
+    final history = maintenance.history.toList()..sort((a, b) => b.date.compareTo(a.date));
+    for (final h in history.take(3)) {
+      items.add(
+        _ActivityItem(
+          ts: h.date,
+          icon: Icons.check_circle_rounded,
+          iconColor: AppColors.success,
+          title: '${h.title} completed',
+          subtitle: _timeAgo(h.date, now),
+        ),
+      );
+    }
+
+    if (vehicles is VehiclesLoaded) {
+      final vs = vehicles.vehicles
+          .where((v) => (v.createdAt ?? v.updatedAt) != null)
+          .toList()
+        ..sort((a, b) => ((b.createdAt ?? b.updatedAt)!).compareTo((a.createdAt ?? a.updatedAt)!));
+      for (final v in vs.take(2)) {
+        final ts = (v.createdAt ?? v.updatedAt)!;
+        items.add(
+          _ActivityItem(
+            ts: ts,
+            icon: Icons.add_circle_outline_rounded,
+            iconColor: AppColors.secondary,
+            title: 'Vehicle added: ${_vehicleLabel(v)}',
+            subtitle: _timeAgo(ts, now),
+          ),
+        );
+      }
+    }
+
+    items.sort((a, b) => b.ts.compareTo(a.ts));
+    return items.take(5).toList();
+  }
+
+  static String _vehicleLabel(Vehicle v) {
+    final name = v.displayName.trim();
+    if (name.isNotEmpty) return name;
+    return v.plateNumber;
+  }
+
+  static String _timeAgo(DateTime ts, DateTime now) {
+    final diff = now.difference(ts);
+    if (diff.inMinutes < 2) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} hr ago';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    final weeks = (diff.inDays / 7).floor();
+    if (weeks < 5) return '$weeks weeks ago';
+    final months = (diff.inDays / 30).floor();
+    return '$months months ago';
+  }
+}
+
+class _ActivityItem {
+  const _ActivityItem({
+    required this.ts,
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final DateTime ts;
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
 }
 
 class _ActivityRow extends StatelessWidget {
@@ -932,13 +1186,15 @@ class _BottomNavBar extends StatelessWidget {
                   Navigator.of(context).pushNamed('/services');
                 },
               ),
-              const _BottomNavItem(
+              _BottomNavItem(
                 icon: Icons.people_alt_outlined,
                 label: 'Community',
+                onTap: () => Navigator.of(context).pushNamed('/community'),
               ),
-              const _BottomNavItem(
+              _BottomNavItem(
                 icon: Icons.menu_book_outlined,
                 label: 'Edu',
+                onTap: () => Navigator.of(context).pushNamed('/education'),
               ),
             ],
           ),

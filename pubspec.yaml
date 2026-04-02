@@ -66,6 +66,7 @@ dependencies:
 
   # File picking (if picker doesn't open on device, try pinning to 8.1.4)
   file_picker: ^8.0.0+1
+  image_picker: ^1.1.2
 
   # UI Utilities
   cached_network_image: ^3.3.1

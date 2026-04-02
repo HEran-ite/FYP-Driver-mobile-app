@@ -7,6 +7,7 @@ class ServiceCenterModel {
     required this.id,
     required this.name,
     required this.subtitle,
+    required this.phone,
     required this.latitude,
     required this.longitude,
     required this.rating,
@@ -22,6 +23,7 @@ class ServiceCenterModel {
   final String id;
   final String name;
   final String subtitle;
+  final String phone;
   final double latitude;
   final double longitude;
   final double rating;
@@ -30,16 +32,26 @@ class ServiceCenterModel {
   final bool isOpen;
   final bool isRegistered;
   final bool onsiteServiceEnabled;
-  final List<String> services;
+  final List<GarageOfferedService> services;
   final List<GarageAvailabilitySlotModel> availabilitySlots;
 
   factory ServiceCenterModel.fromJson(Map<String, dynamic> json) {
     final servicesList = json['services'];
-    List<String> services = [];
+    final services = <GarageOfferedService>[];
     if (servicesList is List) {
       for (final e in servicesList) {
-        if (e is String) services.add(e);
-        else if (e is Map && e['name'] != null) services.add(e['name'].toString());
+        if (e is String) {
+          final n = e.trim();
+          if (n.isNotEmpty) {
+            services.add(GarageOfferedService(id: '', name: n));
+          }
+        } else if (e is Map) {
+          final id = e['id']?.toString() ?? '';
+          final name = (e['name'] ?? e['serviceName'])?.toString().trim() ?? '';
+          if (name.isNotEmpty) {
+            services.add(GarageOfferedService(id: id, name: name));
+          }
+        }
       }
     }
     // Prefer dedicated availability payload; fallback to nearby's availabilitySlots.
@@ -60,6 +72,11 @@ class ServiceCenterModel {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? json['garageName']?.toString() ?? 'Garage',
       subtitle: json['subtitle']?.toString() ?? json['address']?.toString() ?? '',
+      phone: json['phone']?.toString() ??
+          json['phoneNumber']?.toString() ??
+          json['contactPhone']?.toString() ??
+          json['contact_number']?.toString() ??
+          '',
       latitude: _toDouble(json['latitude'] ?? json['lat'], 0.0),
       longitude: _toDouble(json['longitude'] ?? json['lng'], 0.0),
       rating: _toDouble(json['rating'], 0.0),
@@ -93,6 +110,7 @@ class ServiceCenterModel {
         id: id,
         name: name,
         subtitle: subtitle,
+        phone: phone,
         latitude: latitude,
         longitude: longitude,
         rating: rating,

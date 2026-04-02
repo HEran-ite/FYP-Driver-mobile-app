@@ -12,3 +12,14 @@ String formatServiceLabel(String raw) {
   return words.join(' ');
 }
 
+/// Comma-separated service names (e.g. appointment `serviceSummary`); formats each segment.
+String formatServiceLine(String raw) {
+  final t = raw.trim();
+  if (t.isEmpty) return t;
+  return t
+      .split(',')
+      .map((s) => formatServiceLabel(s.trim()))
+      .where((s) => s.isNotEmpty)
+      .join(', ');
+}
+

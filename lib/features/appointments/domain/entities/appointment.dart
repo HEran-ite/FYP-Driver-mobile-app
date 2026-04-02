@@ -18,6 +18,7 @@ class Appointment extends Equatable {
     required this.garageId,
     required this.scheduledAt,
     required this.serviceDescription,
+    this.services = const [],
     required this.status,
     required this.createdAt,
     required this.updatedAt,
@@ -30,6 +31,10 @@ class Appointment extends Equatable {
   final String garageId;
   final DateTime scheduledAt;
   final String serviceDescription;
+
+  /// Service names returned by the API (`services` field).
+  final List<String> services;
+
   final AppointmentStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -40,7 +45,22 @@ class Appointment extends Equatable {
   /// Display name of the vehicle selected for this appointment.
   final String? vehicleName;
 
+  /// Prefer structured [services]; fall back to [serviceDescription].
+  String get serviceSummary =>
+      services.isNotEmpty ? services.join(', ') : serviceDescription;
+
   @override
-  List<Object?> get props =>
-      [id, driverId, garageId, scheduledAt, serviceDescription, status, createdAt, updatedAt, garageName, vehicleName];
+  List<Object?> get props => [
+        id,
+        driverId,
+        garageId,
+        scheduledAt,
+        serviceDescription,
+        services,
+        status,
+        createdAt,
+        updatedAt,
+        garageName,
+        vehicleName,
+      ];
 }

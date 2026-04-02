@@ -12,6 +12,20 @@ abstract class AuthRemoteDataSource {
     required String password,
   });
   Future<void> logout();
+
+  Future<DriverResponse> getProfile();
+  Future<DriverResponse> createProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+  });
+  Future<DriverResponse> updateProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+  });
 }
 
 class LoginResponse {

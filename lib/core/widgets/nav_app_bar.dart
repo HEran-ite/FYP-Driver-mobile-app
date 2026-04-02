@@ -1,11 +1,13 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../constants/dimensions.dart';
 import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../../features/notifications/presentation/bloc/notifications_bloc.dart';
 
 /// Common app bar for all main nav screens (dashboard, vehicles, services).
 /// Uses drawer menu, optional title, and optional notification + profile actions.
@@ -35,6 +37,13 @@ class NavAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    int? liveUnread;
+    try {
+      liveUnread = context.watch<NotificationsBloc>().state.unreadCount;
+    } catch (_) {
+      liveUnread = null;
+    }
+    final badge = liveUnread ?? notificationCount;
     return AppBar(
       backgroundColor: AppColors.background,
       elevation: 0,
@@ -65,9 +74,9 @@ class NavAppBar extends StatelessWidget implements PreferredSizeWidget {
                       Icons.notifications_none_rounded,
                       color: AppColors.textPrimary,
                     ),
-                    onPressed: () {},
+                    onPressed: () => Navigator.of(context).pushNamed('/notifications'),
                   ),
-                  if (notificationCount != null && notificationCount! > 0)
+                  if (badge != null && badge > 0)
                     Positioned(
                       right: 8,
                       top: 8,
@@ -83,9 +92,9 @@ class NavAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ),
                         child: Center(
                           child: Text(
-                            notificationCount! > 99
+                            badge > 99
                                 ? '99+'
-                                : notificationCount.toString(),
+                                : badge.toString(),
                             style: AppTextStyles.labelSmall.copyWith(
                               color: Colors.white,
                               fontSize: 10,

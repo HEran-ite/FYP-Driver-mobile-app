@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/dimensions.dart';
@@ -20,6 +21,7 @@ import '../bloc/service_locator_event.dart';
 import '../bloc/service_locator_state.dart';
 import 'book_service_wizard_page.dart';
 import '../widgets/service_tag_chip.dart';
+import '../widgets/service_text_formatter.dart';
 
 class ServiceLocatorPage extends StatelessWidget {
   const ServiceLocatorPage({super.key});
@@ -186,13 +188,6 @@ class _ServiceLocatorViewState extends State<_ServiceLocatorView> {
         ),
       ),
       bottomNavigationBar: const _ServiceBottomNavBar(),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        shape: const CircleBorder(),
-        onPressed: () {},
-        child: const ImageIcon(AssetImage('assets/images/ai_Icon.png')),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
   }
 
@@ -485,8 +480,8 @@ class _AppointmentCardFromEntity extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  appointment.serviceDescription.isNotEmpty
-                      ? appointment.serviceDescription
+                  appointment.serviceSummary.isNotEmpty
+                      ? formatServiceLine(appointment.serviceSummary)
                       : 'Service',
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
@@ -816,7 +811,7 @@ class _NearbyCenterCard extends StatelessWidget {
                         spacing: Spacing.xs,
                         runSpacing: Spacing.xs,
                         children: center.services.take(4).map((s) {
-                          return ServiceTagChip(label: s);
+                          return ServiceTagChip(label: s.name);
                         }).toList(),
                       ),
                     ],
@@ -849,7 +844,7 @@ class _NearbyCenterCard extends StatelessWidget {
               const SizedBox(width: Spacing.sm),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _callCenter(context, center.phone),
                   icon: const Icon(Icons.phone_outlined, size: 18),
                   label: const Text('Call'),
                   style: OutlinedButton.styleFrom(
@@ -885,6 +880,32 @@ class _NearbyCenterCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static Future<void> _callCenter(BuildContext context, String rawPhone) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final phone = rawPhone.trim();
+    if (phone.isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('No phone number available for this garage.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: phone);
+    final ok = await canLaunchUrl(uri);
+    if (!ok) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Calling is not supported on this device.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 
@@ -1004,12 +1025,12 @@ class _ServiceBottomNavBar extends StatelessWidget {
               _ServiceBottomNavItem(
                 icon: Icons.people_alt_outlined,
                 label: 'Community',
-                onTap: () {},
+                onTap: () => Navigator.of(context).pushNamed('/community'),
               ),
               _ServiceBottomNavItem(
                 icon: Icons.menu_book_outlined,
                 label: 'Edu',
-                onTap: () {},
+                onTap: () => Navigator.of(context).pushNamed('/education'),
               ),
             ],
           ),
