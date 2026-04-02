@@ -14,6 +14,7 @@ import '../../../appointments/presentation/bloc/appointments_event.dart';
 import '../../../appointments/presentation/bloc/appointments_state.dart';
 import '../../domain/entities/service_center.dart';
 import '../../../../core/widgets/nav_app_bar.dart';
+import '../widgets/service_text_formatter.dart';
 
 class AppointmentsListPage extends StatefulWidget {
   const AppointmentsListPage({
@@ -173,8 +174,8 @@ class _AppointmentCardFromEntity extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  appointment.serviceDescription.isNotEmpty
-                      ? appointment.serviceDescription
+                  appointment.serviceSummary.isNotEmpty
+                      ? formatServiceLine(appointment.serviceSummary)
                       : 'Service',
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
@@ -414,12 +415,12 @@ class _ServiceBottomNavBar extends StatelessWidget {
               _ServiceBottomNavItem(
                 icon: Icons.people_alt_outlined,
                 label: 'Community',
-                onTap: () {},
+                onTap: () => Navigator.of(context).pushNamed('/community'),
               ),
               _ServiceBottomNavItem(
                 icon: Icons.menu_book_outlined,
                 label: 'Edu',
-                onTap: () {},
+                onTap: () => Navigator.of(context).pushNamed('/education'),
               ),
             ],
           ),

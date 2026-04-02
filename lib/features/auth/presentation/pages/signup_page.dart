@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/utils/ethiopia_phone.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/constants/spacing.dart';
@@ -53,11 +54,22 @@ class _SignupPageState extends State<SignupPage> {
       );
       return;
     }
+    final phoneNorm = normalizeEthiopiaPhone(_phoneController.text);
+    if (phoneNorm == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Enter a valid phone: 09…, 251…, or +251… (9-digit mobile).',
+          ),
+        ),
+      );
+      return;
+    }
     context.read<AuthBloc>().add(SignupRequested(
           firstName: _firstNameController.text.trim(),
           lastName: _lastNameController.text.trim(),
           email: _emailController.text.trim(),
-          phone: _phoneController.text.trim(),
+          phone: phoneNorm,
           password: password,
         ));
   }
@@ -180,8 +192,9 @@ class _SignupPageState extends State<SignupPage> {
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
                             enabled: !isLoading,
+                            inputFormatters: const [EthiopiaPhoneInputFormatter()],
                             decoration: const InputDecoration(
-                              hintText: '+1 (555) 000-0000',
+                              hintText: '09…, 251…, or +251…',
                               prefixIcon: Icon(Icons.phone_outlined, color: AppColors.textSecondary),
                             ),
                           ),

@@ -10,6 +10,9 @@ import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../injection/service_locator.dart';
+import '../../../maintenance/presentation/bloc/maintenance_bloc.dart';
+import '../../../maintenance/presentation/bloc/maintenance_event.dart';
+import '../../../maintenance/presentation/bloc/maintenance_state.dart';
 import '../../domain/entities/vehicle.dart';
 import '../bloc/vehicles_bloc.dart';
 import '../bloc/vehicles_event.dart';
@@ -22,8 +25,15 @@ class VehicleDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<VehiclesBloc>()..add(VehicleDetailRequested(vehicleId)),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => getIt<VehiclesBloc>()..add(VehicleDetailRequested(vehicleId)),
+        ),
+        BlocProvider(
+          create: (_) => getIt<MaintenanceBloc>()..add(const MaintenanceLoadRequested()),
+        ),
+      ],
       child: _VehicleDetailView(vehicleId: vehicleId),
     );
   }
@@ -129,7 +139,7 @@ class _VehicleDetailView extends StatelessWidget {
               children: [
                 _ImagePlaceholder(),
                 const SizedBox(height: Spacing.lg),
-                _OverallHealthCard(),
+                _OverallHealthCard(vehicleId: vehicle.id),
                 const SizedBox(height: Spacing.lg),
                 _VehicleInformationCard(vehicle: vehicle),
                 const SizedBox(height: Spacing.lg),
@@ -182,12 +192,6 @@ class _VehicleDetailView extends StatelessWidget {
         },
       ),
       bottomNavigationBar: _VehicleDetailBottomNav(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.auto_awesome, color: AppColors.secondary),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     ),
     );
   }
@@ -236,7 +240,28 @@ class _ImagePlaceholder extends StatelessWidget {
 }
 
 class _OverallHealthCard extends StatelessWidget {
-  const _OverallHealthCard();
+  const _OverallHealthCard({required this.vehicleId});
+
+  final String vehicleId;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<MaintenanceBloc, MaintenanceState>(
+      builder: (context, mState) {
+        final enabledCount = mState.upcoming.where((u) => u.vehicleId == vehicleId && u.reminderEnabled).length;
+        final pct = (85 - enabledCount * 5).clamp(0, 100);
+        final color = pct >= 75 ? AppColors.success : (pct >= 45 ? AppColors.pending : AppColors.danger);
+
+        return _OverallHealthCardBody(percentage: pct, color: color);
+      },
+    );
+  }
+}
+
+class _OverallHealthCardBody extends StatelessWidget {
+  const _OverallHealthCardBody({required this.percentage, required this.color});
+  final int percentage;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -261,10 +286,10 @@ class _OverallHealthCard extends StatelessWidget {
             ),
           ),
           Text(
-            '85%',
+            '$percentage%',
             style: AppTextStyles.titleMedium.copyWith(
               fontWeight: FontWeight.w600,
-              color: AppColors.success,
+              color: color,
             ),
           ),
         ],
@@ -562,8 +587,12 @@ class _VehicleDetailBottomNav extends StatelessWidget {
               _NavItem(icon: Icons.home_filled, label: 'Home', onTap: () => Navigator.of(context).pushNamedAndRemoveUntil('/driver-dashboard', (r) => r.isFirst)),
               _NavItem(icon: Icons.directions_car_filled, label: 'Vehicle', isActive: true),
               _NavItem(icon: Icons.build_outlined, label: 'Service', onTap: () => Navigator.of(context).pushNamed('/services')),
-              _NavItem(icon: Icons.people_alt_outlined, label: 'Community', onTap: () {}),
-              _NavItem(icon: Icons.menu_book_outlined, label: 'Education', onTap: () {}),
+              _NavItem(icon: Icons.people_alt_outlined, label: 'Community', onTap: () => Navigator.of(context).pushNamed('/community')),
+              _NavItem(
+                icon: Icons.menu_book_outlined,
+                label: 'Education',
+                onTap: () => Navigator.of(context).pushNamed('/education'),
+              ),
             ],
           ),
         ),

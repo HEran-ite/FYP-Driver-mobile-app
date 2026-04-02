@@ -36,6 +36,7 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
     required String vehicleId,
     required String scheduledAt,
     required String serviceDescription,
+    required List<String> garageServiceIds,
     bool isOnsite = false,
     double? serviceLatitude,
     double? serviceLongitude,
@@ -45,6 +46,7 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
       'vehicleId': vehicleId,
       'scheduledAt': scheduledAt,
       'serviceDescription': serviceDescription,
+      'garageServiceIds': garageServiceIds,
     };
     if (isOnsite &&
         serviceLatitude != null &&

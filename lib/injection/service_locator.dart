@@ -52,6 +52,40 @@ import '../features/vehicles/application/usecases/add_vehicle_usecase.dart';
 import '../features/vehicles/application/usecases/update_vehicle_usecase.dart';
 import '../features/vehicles/application/usecases/delete_vehicle_usecase.dart';
 import '../features/vehicles/presentation/bloc/vehicles_bloc.dart';
+import '../features/community/data/datasources/community_remote_datasource.dart';
+import '../features/community/data/datasources/community_remote_datasource_impl.dart';
+import '../features/community/data/repositories/community_repository_impl.dart';
+import '../features/community/domain/repositories/community_repository.dart';
+import '../features/community/application/usecases/list_posts_usecase.dart';
+import '../features/community/application/usecases/create_post_usecase.dart';
+import '../features/community/application/usecases/delete_post_usecase.dart';
+import '../features/community/presentation/bloc/community_bloc.dart';
+import '../features/maintenance/data/datasources/maintenance_remote_datasource.dart';
+import '../features/maintenance/data/datasources/maintenance_remote_datasource_impl.dart';
+import '../features/maintenance/data/repositories/maintenance_repository_impl.dart';
+import '../features/maintenance/domain/repositories/maintenance_repository.dart';
+import '../features/maintenance/application/usecases/list_upcoming_usecase.dart';
+import '../features/maintenance/application/usecases/list_history_usecase.dart';
+import '../features/maintenance/application/usecases/create_upcoming_usecase.dart';
+import '../features/maintenance/application/usecases/delete_upcoming_usecase.dart';
+import '../features/maintenance/application/usecases/delete_history_usecase.dart';
+import '../features/maintenance/application/usecases/toggle_reminder_usecase.dart';
+import '../features/maintenance/presentation/bloc/maintenance_bloc.dart';
+import '../features/notifications/data/datasources/notifications_remote_datasource.dart';
+import '../features/notifications/data/datasources/notifications_remote_datasource_impl.dart';
+import '../features/notifications/data/repositories/notifications_repository_impl.dart';
+import '../features/notifications/domain/repositories/notifications_repository.dart';
+import '../features/notifications/application/usecases/list_notifications_usecase.dart';
+import '../features/notifications/application/usecases/mark_notification_read_usecase.dart';
+import '../features/notifications/presentation/bloc/notifications_bloc.dart';
+import '../features/education/data/datasources/education_remote_datasource.dart';
+import '../features/education/data/datasources/education_remote_datasource_impl.dart';
+import '../features/education/data/repositories/education_repository_impl.dart';
+import '../features/education/domain/repositories/education_repository.dart';
+import '../features/education/application/usecases/list_education_articles_usecase.dart';
+import '../features/education/application/usecases/search_education_articles_usecase.dart';
+import '../features/education/application/usecases/get_education_article_usecase.dart';
+import '../features/education/presentation/bloc/education_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -207,6 +241,81 @@ Future<void> setupServiceLocator() async {
       addVehicleUseCase: getIt<AddVehicleUseCase>(),
       updateVehicleUseCase: getIt<UpdateVehicleUseCase>(),
       deleteVehicleUseCase: getIt<DeleteVehicleUseCase>(),
+    ),
+  );
+
+  // Community
+  getIt.registerLazySingleton<CommunityRemoteDataSource>(
+    () => CommunityRemoteDataSourceImpl(getIt<ApiClient>().dio),
+  );
+  getIt.registerLazySingleton<CommunityRepository>(
+    () => CommunityRepositoryImpl(getIt<CommunityRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(() => ListPostsUseCase(getIt<CommunityRepository>()));
+  getIt.registerLazySingleton(() => CreatePostUseCase(getIt<CommunityRepository>()));
+  getIt.registerLazySingleton(() => DeletePostUseCase(getIt<CommunityRepository>()));
+  getIt.registerFactory(
+    () => CommunityBloc(
+      listPostsUseCase: getIt<ListPostsUseCase>(),
+      createPostUseCase: getIt<CreatePostUseCase>(),
+      deletePostUseCase: getIt<DeletePostUseCase>(),
+    ),
+  );
+
+  // Maintenance
+  getIt.registerLazySingleton<MaintenanceRemoteDataSource>(
+    () => MaintenanceRemoteDataSourceImpl(getIt<ApiClient>().dio),
+  );
+  getIt.registerLazySingleton<MaintenanceRepository>(
+    () => MaintenanceRepositoryImpl(getIt<MaintenanceRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(() => ListUpcomingUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton(() => ListHistoryUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton(() => CreateUpcomingUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton(() => DeleteUpcomingUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton(() => DeleteHistoryUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton(() => ToggleReminderUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerFactory(
+    () => MaintenanceBloc(
+      listUpcoming: getIt<ListUpcomingUseCase>(),
+      listHistory: getIt<ListHistoryUseCase>(),
+      createUpcoming: getIt<CreateUpcomingUseCase>(),
+      deleteUpcoming: getIt<DeleteUpcomingUseCase>(),
+      deleteHistory: getIt<DeleteHistoryUseCase>(),
+      toggleReminder: getIt<ToggleReminderUseCase>(),
+    ),
+  );
+
+  // Notifications (driver maintenance notifications)
+  getIt.registerLazySingleton<NotificationsRemoteDataSource>(
+    () => NotificationsRemoteDataSourceImpl(getIt<ApiClient>().dio),
+  );
+  getIt.registerLazySingleton<NotificationsRepository>(
+    () => NotificationsRepositoryImpl(getIt<NotificationsRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(() => ListNotificationsUseCase(getIt<NotificationsRepository>()));
+  getIt.registerLazySingleton(() => MarkNotificationReadUseCase(getIt<NotificationsRepository>()));
+  getIt.registerLazySingleton(
+    () => NotificationsBloc(
+      list: getIt<ListNotificationsUseCase>(),
+      markRead: getIt<MarkNotificationReadUseCase>(),
+    ),
+  );
+
+  // Education (driver JWT — GET /driver/education)
+  getIt.registerLazySingleton<EducationRemoteDataSource>(
+    () => EducationRemoteDataSourceImpl(getIt<ApiClient>().dio),
+  );
+  getIt.registerLazySingleton<EducationRepository>(
+    () => EducationRepositoryImpl(getIt<EducationRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(() => ListEducationArticlesUseCase(getIt<EducationRepository>()));
+  getIt.registerLazySingleton(() => SearchEducationArticlesUseCase(getIt<EducationRepository>()));
+  getIt.registerLazySingleton(() => GetEducationArticleUseCase(getIt<EducationRepository>()));
+  getIt.registerFactory(
+    () => EducationBloc(
+      listArticles: getIt<ListEducationArticlesUseCase>(),
+      searchArticles: getIt<SearchEducationArticlesUseCase>(),
     ),
   );
 }

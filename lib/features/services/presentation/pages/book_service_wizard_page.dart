@@ -58,7 +58,7 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
   Appointment? _bookedAppointment;
 
   String? _selectedVehicleId;
-  String? _selectedServiceDescription;
+  final Set<String> _selectedGarageServiceIds = {};
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -66,7 +66,7 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
   bool _availabilityLoading = true;
 
   bool get _step1Ready => _selectedVehicleId != null;
-  bool get _step2Ready => _selectedServiceDescription != null;
+  bool get _step2Ready => _selectedGarageServiceIds.isNotEmpty;
   bool get _step3Ready => _availabilitySlots.isNotEmpty && _selectedDate != null && _selectedTime != null;
 
   @override
@@ -295,7 +295,14 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
     final date = _selectedDate!;
     final time = _selectedTime!;
     final scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    final description = (_selectedServiceDescription ?? widget.center.services.firstOrNull ?? 'Service').trim();
+    final orderedIds = _orderedSelectedGarageServiceIds();
+    final namesInOrder = <String>[];
+    for (final o in widget.center.services) {
+      if (orderedIds.contains(o.id)) namesInOrder.add(o.name);
+    }
+    final description = namesInOrder.isNotEmpty
+        ? namesInOrder.join(', ')
+        : (widget.center.services.firstOrNull?.name ?? 'Service').trim();
 
     if (_isBooking) return;
     setState(() => _isBooking = true);
@@ -305,11 +312,23 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
             vehicleId: _selectedVehicleId!,
             scheduledAt: scheduledAt,
             serviceDescription: description,
+            garageServiceIds: orderedIds,
             isOnsite: widget.isOnsite,
             serviceLatitude: widget.serviceLatitude,
             serviceLongitude: widget.serviceLongitude,
           ),
         );
+  }
+
+  /// Preserves garage list order; matches driver-garage-backend `garageServiceIds`.
+  List<String> _orderedSelectedGarageServiceIds() {
+    final out = <String>[];
+    for (final o in widget.center.services) {
+      if (o.canBookWithApi && _selectedGarageServiceIds.contains(o.id)) {
+        out.add(o.id);
+      }
+    }
+    return out;
   }
 
   @override
@@ -374,10 +393,22 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
 
   Widget _SelectServicesStep() {
     final services = widget.center.services;
+    final bookable = services.where((o) => o.canBookWithApi).toList();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (services.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Spacing.sm),
+              child: Text(
+                'Select one or more services',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
           if (services.isEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: Spacing.md),
@@ -388,17 +419,47 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
                 ),
               ),
             ),
+          if (services.isNotEmpty && bookable.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Spacing.md),
+              child: Text(
+                'Service IDs are missing for this garage. Update the app or contact support.',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.danger,
+                ),
+              ),
+            ),
           Expanded(
             child: ListView.separated(
               itemCount: services.length,
               separatorBuilder: (_, __) => const SizedBox(height: Spacing.sm),
               itemBuilder: (context, index) {
-                final s = services[index];
-                final selected = s == _selectedServiceDescription;
+                final o = services[index];
+                final selected =
+                    o.canBookWithApi && _selectedGarageServiceIds.contains(o.id);
                 return _ServiceSelectCard(
-                  label: s,
+                  label: o.name,
                   selected: selected,
-                  onTap: () => setState(() => _selectedServiceDescription = s),
+                  enabled: o.canBookWithApi,
+                  onTap: () {
+                    if (!o.canBookWithApi) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'This listing has no service ID and cannot be booked against the server.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    setState(() {
+                      if (selected) {
+                        _selectedGarageServiceIds.remove(o.id);
+                      } else {
+                        _selectedGarageServiceIds.add(o.id);
+                      }
+                    });
+                  },
                 );
               },
             ),
@@ -520,23 +581,40 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
             ],
           ),
           const SizedBox(height: Spacing.sm),
-          Wrap(
-            spacing: Spacing.sm,
-            runSpacing: Spacing.sm,
-            children: timeSlots.map((t) {
-              final isSelected = _selectedTime == t;
-              return ChoiceChip(
-                label: Text(_formatTimeOfDay(t)),
-                selected: isSelected,
-                onSelected: (_) => setState(() => _selectedTime = t),
-                selectedColor: AppColors.secondary,
-                backgroundColor: AppColors.surfaceMuted,
-                labelStyle: TextStyle(
-                  color: isSelected ? AppColors.textOnPrimary : AppColors.textPrimary,
-                ),
+          _PickerField(
+            value: _selectedTime != null ? _formatTimeOfDay(_selectedTime!) : '',
+            enabled: hasSlots && !_availabilityLoading && _selectedDate != null && timeSlots.isNotEmpty,
+            onTap: () async {
+              if (_selectedDate == null || timeSlots.isEmpty) return;
+              final initial = _selectedTime ?? timeSlots.first;
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: initial,
               );
-            }).toList(),
+              if (picked == null) return;
+
+              final normalized = _normalizeToNearestSlot(picked, timeSlots);
+              if (normalized == null) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Selected time is not available. Please choose an available slot.'),
+                    backgroundColor: AppColors.danger,
+                  ),
+                );
+                return;
+              }
+              setState(() => _selectedTime = normalized);
+            },
           ),
+          if (_selectedDate != null && timeSlots.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: Spacing.xs),
+              child: Text(
+                'Available: ${_formatTimeOfDay(timeSlots.first)} – ${_formatTimeOfDay(timeSlots.last)}',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
           if (!hasSlots)
             Padding(
               padding: const EdgeInsets.only(top: Spacing.sm),
@@ -579,6 +657,34 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
         ],
       ),
     );
+  }
+
+  /// Returns the nearest allowed slot if within the configured interval; otherwise null.
+  ///
+  /// We intentionally don't auto-snap across large gaps (e.g. if user picks 2am but
+  /// garage works 9am-5pm) to avoid surprising bookings.
+  TimeOfDay? _normalizeToNearestSlot(TimeOfDay picked, List<TimeOfDay> allowed) {
+    if (allowed.isEmpty) return null;
+    if (allowed.any((t) => t.hour == picked.hour && t.minute == picked.minute)) {
+      return picked;
+    }
+    final pickedMin = picked.hour * 60 + picked.minute;
+    final firstMin = allowed.first.hour * 60 + allowed.first.minute;
+    final lastMin = allowed.last.hour * 60 + allowed.last.minute;
+    if (pickedMin < firstMin || pickedMin > lastMin) return null;
+
+    TimeOfDay best = allowed.first;
+    var bestDiff = (pickedMin - (best.hour * 60 + best.minute)).abs();
+    for (final t in allowed.skip(1)) {
+      final tMin = t.hour * 60 + t.minute;
+      final diff = (pickedMin - tMin).abs();
+      if (diff < bestDiff) {
+        best = t;
+        bestDiff = diff;
+      }
+    }
+    // Require it to be "close enough" to the hourly slots (<= 30 minutes away).
+    return bestDiff <= 30 ? best : null;
   }
 
   static String _formatTimeOfDay(TimeOfDay t) {
@@ -776,11 +882,13 @@ class _ServiceSelectCard extends StatelessWidget {
   const _ServiceSelectCard({
     required this.label,
     required this.selected,
+    required this.enabled,
     required this.onTap,
   });
 
   final String label;
   final bool selected;
+  final bool enabled;
   final VoidCallback onTap;
 
   IconData _iconFor(String s) {
@@ -795,43 +903,55 @@ class _ServiceSelectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
-      child: Container(
-        padding: const EdgeInsets.all(Spacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: selected ? AppColors.primaryLight : AppColors.surfaceMuted,
-                borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
-              ),
-              child: Icon(
-                _iconFor(label),
-                size: 22,
-                color: AppColors.textSecondary,
-              ),
+      child: Opacity(
+        opacity: enabled ? 1 : 0.5,
+        child: Container(
+          padding: const EdgeInsets.all(Spacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
             ),
-            const SizedBox(width: Spacing.md),
-            Expanded(
-              child: Text(
-                formatServiceLabel(label),
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primaryLight : AppColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
+                ),
+                child: Icon(
+                  _iconFor(label),
+                  size: 22,
+                  color: AppColors.textSecondary,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: Spacing.md),
+              Expanded(
+                child: Text(
+                  formatServiceLabel(label),
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Icon(
+                !enabled
+                    ? Icons.not_interested_outlined
+                    : (selected ? Icons.check_circle : Icons.circle_outlined),
+                color: !enabled
+                    ? AppColors.textDisabled
+                    : (selected ? AppColors.secondary : AppColors.border),
+                size: 26,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -946,7 +1066,13 @@ class _SuccessView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: Spacing.md),
-                  _DetailRow(icon: Icons.description_outlined, label: 'Service', value: appointment.serviceDescription),
+                  _DetailRow(
+                    icon: Icons.description_outlined,
+                    label: 'Service',
+                    value: appointment.serviceSummary.isNotEmpty
+                        ? formatServiceLine(appointment.serviceSummary)
+                        : 'Service',
+                  ),
                   _DetailRow(
                     icon: Icons.calendar_today_outlined,
                     label: 'Date & Time',

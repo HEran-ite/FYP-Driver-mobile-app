@@ -10,6 +10,7 @@ abstract class AppointmentRepository {
     required String vehicleId,
     required DateTime scheduledAt,
     required String serviceDescription,
+    required List<String> garageServiceIds,
     bool isOnsite = false,
     double? serviceLatitude,
     double? serviceLongitude,

@@ -2336,7 +2336,7 @@ class _OverviewTab extends StatelessWidget {
             runSpacing: Spacing.xs,
             children: center.services
                 .map(
-                  (s) => ServiceTagChip(label: s),
+                  (s) => ServiceTagChip(label: s.name),
                 )
                 .toList(),
           ),
