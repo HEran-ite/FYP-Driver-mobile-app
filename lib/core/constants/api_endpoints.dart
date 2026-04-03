@@ -43,6 +43,9 @@ class ApiEndpoints {
   static const String driverEducationSearch = '/driver/education/search';
 
   // ----- Driver Maintenance (prefix: /driver/maintenance) -----
+  static const String driverMaintenanceCatalog = '/driver/maintenance/catalog';
+  static String driverMaintenanceVehicleHealth(String vehicleId) =>
+      '/driver/maintenance/health/$vehicleId';
   static const String driverMaintenanceUpcoming = '/driver/maintenance/upcoming';
   static const String driverMaintenanceHistory = '/driver/maintenance/history';
   static String driverMaintenanceUpcomingById(String id) =>
@@ -51,6 +54,8 @@ class ApiEndpoints {
       '/driver/maintenance/history/$id';
   static String driverMaintenanceUpcomingToggleReminder(String id) =>
       '/driver/maintenance/upcoming/$id/reminder';
+  static String driverMaintenanceUpcomingMarkDone(String id) =>
+      '/driver/maintenance/upcoming/$id/done';
   static const String driverMaintenanceNotifications = '/driver/maintenance/notifications';
   static String driverMaintenanceNotificationRead(String id) =>
       '/driver/maintenance/notifications/$id/read';

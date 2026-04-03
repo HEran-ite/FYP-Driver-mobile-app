@@ -107,12 +107,19 @@ class NavAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ],
               ),
               const SizedBox(width: Spacing.xs),
-              CircleAvatar(
-                radius: Dimensions.profileAvatarRadius,
-                backgroundColor: AppColors.surfaceMuted,
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: AppColors.textSecondary,
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => Navigator.of(context).pushNamed('/profile'),
+                  child: CircleAvatar(
+                    radius: Dimensions.profileAvatarRadius,
+                    backgroundColor: AppColors.surfaceMuted,
+                    child: const Icon(
+                      Icons.person_rounded,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: Spacing.md),

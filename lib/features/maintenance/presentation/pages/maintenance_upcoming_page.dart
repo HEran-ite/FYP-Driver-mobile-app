@@ -3,7 +3,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -14,6 +13,7 @@ import '../../../vehicles/presentation/bloc/vehicles_event.dart';
 import '../bloc/maintenance_bloc.dart';
 import '../bloc/maintenance_event.dart';
 import '../bloc/maintenance_state.dart';
+import '../widgets/maintenance_upcoming_list_item.dart';
 import 'schedule_maintenance_page.dart';
 
 class MaintenanceUpcomingPage extends StatefulWidget {
@@ -82,10 +82,10 @@ class _MaintenanceUpcomingPageState extends State<MaintenanceUpcomingPage> {
               Expanded(
                 child: BlocBuilder<MaintenanceBloc, MaintenanceState>(
                   builder: (context, state) {
-                    if (state.loading && state.upcoming.isEmpty) {
+                    final items = state.upcoming.where((u) => u.isActiveReminder).toList();
+                    if (state.loading && items.isEmpty) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    final items = state.upcoming;
                     if (items.isEmpty) {
                       return Center(
                         child: Text(
@@ -99,56 +99,17 @@ class _MaintenanceUpcomingPageState extends State<MaintenanceUpcomingPage> {
                       separatorBuilder: (_, __) => const SizedBox(height: Spacing.md),
                       itemBuilder: (context, i) {
                         final m = items[i];
-                        final dateStr = _formatDate(m.scheduledAt);
-                        return Container(
-                          padding: const EdgeInsets.all(Spacing.lg),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(22),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: AppColors.shadow,
-                                blurRadius: 18,
-                                offset: Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                m.title,
-                                style: AppTextStyles.titleMedium.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: Spacing.sm),
-                              Row(
-                                children: [
-                                  const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
-                                  const SizedBox(width: Spacing.xs),
-                                  Text(dateStr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-                                ],
-                              ),
-                              const SizedBox(height: Spacing.md),
-                              OutlinedButton.icon(
-                                onPressed: () {
-                                  context.read<MaintenanceBloc>().add(MaintenanceUpcomingDeleteRequested(m.id));
-                                },
-                                icon: const Icon(Icons.close_rounded, size: 18),
-                                label: const Text('Cancel'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.textPrimary,
-                                  side: const BorderSide(color: AppColors.border),
-                                  padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        return MaintenanceUpcomingListItem(
+                          item: m,
+                          onDelete: () {
+                            context.read<MaintenanceBloc>().add(MaintenanceUpcomingDeleteRequested(m.id));
+                          },
+                          onToggleReminder: () {
+                            context.read<MaintenanceBloc>().add(MaintenanceToggleReminderRequested(m.id));
+                          },
+                          onMarkDone: m.canMarkDoneFromUi
+                              ? () => context.read<MaintenanceBloc>().add(MaintenanceMarkDoneRequested(m.id))
+                              : null,
                         );
                       },
                     );
@@ -191,12 +152,6 @@ class _MaintenanceUpcomingPageState extends State<MaintenanceUpcomingPage> {
         ),
       ),
     );
-  }
-
-  static String _formatDate(DateTime d) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final m = months[d.month - 1];
-    return '$m ${d.day}, ${d.year}';
   }
 
   // Vehicle picking now happens on the dedicated schedule screen.

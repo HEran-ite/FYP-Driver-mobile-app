@@ -10,9 +10,10 @@ import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../injection/service_locator.dart';
-import '../../../maintenance/presentation/bloc/maintenance_bloc.dart';
-import '../../../maintenance/presentation/bloc/maintenance_event.dart';
-import '../../../maintenance/presentation/bloc/maintenance_state.dart';
+import '../../../maintenance/application/usecases/get_vehicle_health_usecase.dart';
+import '../../../maintenance/domain/entities/vehicle_health.dart';
+import '../../../maintenance/presentation/utils/vehicle_health_ui.dart';
+import '../../../maintenance/presentation/widgets/vehicle_health_subsystems_strip.dart';
 import '../../domain/entities/vehicle.dart';
 import '../bloc/vehicles_bloc.dart';
 import '../bloc/vehicles_event.dart';
@@ -25,15 +26,8 @@ class VehicleDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (_) => getIt<VehiclesBloc>()..add(VehicleDetailRequested(vehicleId)),
-        ),
-        BlocProvider(
-          create: (_) => getIt<MaintenanceBloc>()..add(const MaintenanceLoadRequested()),
-        ),
-      ],
+    return BlocProvider(
+      create: (_) => getIt<VehiclesBloc>()..add(VehicleDetailRequested(vehicleId)),
       child: _VehicleDetailView(vehicleId: vehicleId),
     );
   }
@@ -239,29 +233,123 @@ class _ImagePlaceholder extends StatelessWidget {
   }
 }
 
-class _OverallHealthCard extends StatelessWidget {
+class _OverallHealthCard extends StatefulWidget {
   const _OverallHealthCard({required this.vehicleId});
 
   final String vehicleId;
 
   @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<MaintenanceBloc, MaintenanceState>(
-      builder: (context, mState) {
-        final enabledCount = mState.upcoming.where((u) => u.vehicleId == vehicleId && u.reminderEnabled).length;
-        final pct = (85 - enabledCount * 5).clamp(0, 100);
-        final color = pct >= 75 ? AppColors.success : (pct >= 45 ? AppColors.pending : AppColors.danger);
+  State<_OverallHealthCard> createState() => _OverallHealthCardState();
+}
 
-        return _OverallHealthCardBody(percentage: pct, color: color);
-      },
+class _OverallHealthCardState extends State<_OverallHealthCard> {
+  VehicleHealth? _health;
+  bool _loading = true;
+  Object? _error;
+
+  Future<void> _load() async {
+    final vid = widget.vehicleId;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final health = await getIt<GetVehicleHealthUseCase>()(vid);
+      if (!mounted || widget.vehicleId != vid) return;
+      setState(() {
+        _health = health;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _health = null;
+        _loading = false;
+        _error = e;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OverallHealthCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.vehicleId != widget.vehicleId) {
+      _load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: Padding(padding: EdgeInsets.all(Spacing.lg), child: CircularProgressIndicator()));
+    }
+    if (_error != null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+          boxShadow: const [
+            BoxShadow(color: AppColors.shadow, blurRadius: 12, offset: Offset(0, 4)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Overall health unavailable',
+              style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: Spacing.xs),
+            Text(
+              'Pull to refresh or try again.',
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+            ),
+            TextButton(onPressed: _load, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+    final h = _health ?? const VehicleHealth(overallPercent: 0);
+    final pct = h.overallPercent.clamp(0, 100);
+    final color = vehicleHealthColorForPercent(pct);
+    final subsystems = orderedHealthComponents(h.components);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _OverallHealthCardBody(
+          percentage: pct,
+          color: color,
+          subtitle: (h.summary != null && h.summary!.trim().isNotEmpty)
+              ? h.summary!.trim()
+              : 'From your maintenance and garage data.',
+        ),
+        if (subsystems.isNotEmpty) ...[
+          const SizedBox(height: Spacing.md),
+          VehicleHealthSubsystemsStrip(components: subsystems),
+        ],
+      ],
     );
   }
 }
 
 class _OverallHealthCardBody extends StatelessWidget {
-  const _OverallHealthCardBody({required this.percentage, required this.color});
+  const _OverallHealthCardBody({
+    required this.percentage,
+    required this.color,
+    this.subtitle,
+  });
   final int percentage;
   final Color color;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -275,23 +363,40 @@ class _OverallHealthCardBody extends StatelessWidget {
           BoxShadow(color: AppColors.shadow, blurRadius: 12, offset: Offset(0, 4)),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Overall Health',
-            style: AppTextStyles.titleSmall.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  'Overall car health',
+                  style: AppTextStyles.titleSmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                '$percentage%',
+                style: AppTextStyles.titleMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
           ),
-          Text(
-            '$percentage%',
-            style: AppTextStyles.titleMedium.copyWith(
-              fontWeight: FontWeight.w600,
-              color: color,
+          if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+            const SizedBox(height: Spacing.xs),
+            Text(
+              subtitle!.trim(),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary, height: 1.35),
             ),
-          ),
+          ],
         ],
       ),
     );
