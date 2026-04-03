@@ -9,9 +9,15 @@ import '../../../../core/constants/dimensions.dart';
 import '../../../../core/widgets/app_drawer.dart';
 import '../../../../core/widgets/nav_app_bar.dart';
 import '../../../../injection/service_locator.dart';
+import '../../../maintenance/application/usecases/get_vehicle_health_usecase.dart';
+import '../../../maintenance/domain/entities/maintenance_upcoming.dart';
+import '../../../maintenance/domain/entities/maintenance_history.dart';
+import '../../../maintenance/domain/entities/vehicle_health.dart';
 import '../../../maintenance/presentation/bloc/maintenance_bloc.dart';
 import '../../../maintenance/presentation/bloc/maintenance_event.dart';
 import '../../../maintenance/presentation/bloc/maintenance_state.dart';
+import '../../../maintenance/presentation/utils/vehicle_health_ui.dart';
+import '../../../maintenance/presentation/widgets/vehicle_health_subsystems_strip.dart';
 import '../../../vehicles/domain/entities/vehicle.dart';
 import '../../../vehicles/presentation/bloc/vehicles_bloc.dart';
 import '../../../vehicles/presentation/bloc/vehicles_event.dart';
@@ -25,7 +31,7 @@ class DriverDashboardPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       drawer: const AppDrawer(currentRoute: '/driver-dashboard'),
-      appBar: const NavAppBar(title: 'CarCare', notificationCount: 3),
+      appBar: const NavAppBar(title: 'CarCare', notificationCount: null),
       body: SafeArea(
         child: BlocProvider(
           create: (_) =>
@@ -367,144 +373,206 @@ class _VehicleDropdownList extends StatelessWidget {
   }
 }
 
-class _VehicleHealthSection extends StatelessWidget {
+class _VehicleHealthSection extends StatefulWidget {
   const _VehicleHealthSection({required this.selectedVehicleId});
 
   final String? selectedVehicleId;
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<MaintenanceBloc>()..add(const MaintenanceLoadRequested()),
-      child: BlocBuilder<MaintenanceBloc, MaintenanceState>(
-        builder: (context, mState) {
-          final enabledCount = _enabledRemindersForVehicle(
-            mState: mState,
-            vehicleId: selectedVehicleId,
-          );
-          final engine = _clampPct(85 - enabledCount * 5);
-          final brakes = _clampPct(70 - enabledCount * 7);
-          final tires = _clampPct(65 - enabledCount * 9);
-
-          return Container(
-            padding: const EdgeInsets.all(Spacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Vehicle Health',
-                  style: AppTextStyles.titleSmall.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: Spacing.md),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _HealthIndicator(
-                      label: 'Engine',
-                      percentage: engine,
-                      color: _healthColor(engine),
-                    ),
-                    _HealthIndicator(
-                      label: 'Brakes',
-                      percentage: brakes,
-                      color: _healthColor(brakes),
-                    ),
-                    _HealthIndicator(
-                      label: 'Tires',
-                      percentage: tires,
-                      color: _healthColor(tires),
-                    ),
-                  ],
-                ),
-                if (enabledCount > 0) ...[
-                  const SizedBox(height: Spacing.sm),
-                  Text(
-                    'Reminders set: $enabledCount',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                  ),
-                ],
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  static int _enabledRemindersForVehicle({
-    required MaintenanceState mState,
-    required String? vehicleId,
-  }) {
-    final id = vehicleId?.trim();
-    if (id == null || id.isEmpty) return 0;
-    return mState.upcoming.where((u) => u.vehicleId == id && u.reminderEnabled).length;
-  }
-
-  static int _clampPct(int v) => v.clamp(0, 100);
-
-  static Color _healthColor(int pct) {
-    if (pct >= 75) return AppColors.success;
-    if (pct >= 45) return AppColors.pending;
-    return AppColors.danger;
-  }
+  State<_VehicleHealthSection> createState() => _VehicleHealthSectionState();
 }
 
-class _HealthIndicator extends StatelessWidget {
-  final String label;
-  final int percentage;
-  final Color color;
+class _VehicleHealthSectionState extends State<_VehicleHealthSection> {
+  VehicleHealth? _health;
+  bool _loading = false;
+  Object? _error;
 
-  const _HealthIndicator({
-    required this.label,
-    required this.percentage,
-    required this.color,
-  });
+  Future<void> _load() async {
+    final id = widget.selectedVehicleId?.trim();
+    if (id == null || id.isEmpty) {
+      setState(() {
+        _health = null;
+        _error = null;
+        _loading = false;
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final health = await getIt<GetVehicleHealthUseCase>()(id);
+      if (!mounted) return;
+      if (widget.selectedVehicleId?.trim() != id) return;
+      setState(() {
+        _health = health;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _health = null;
+        _loading = false;
+        _error = e;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _VehicleHealthSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedVehicleId != widget.selectedVehicleId) {
+      _load();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          width: Dimensions.healthIndicatorSize,
-          height: Dimensions.healthIndicatorSize,
-          child: Stack(
-            alignment: Alignment.center,
+    final id = widget.selectedVehicleId?.trim();
+
+    BoxDecoration cardDeco() => BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 20,
+              offset: Offset(0, 4),
+            ),
+          ],
+        );
+
+    if (id == null || id.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: cardDeco(),
+        child: Text(
+          'Add or select a vehicle to load car health from the server.',
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+        ),
+      );
+    }
+
+    if (_loading && _health == null) {
+      return Container(
+        height: 160,
+        alignment: Alignment.center,
+        decoration: cardDeco(),
+        child: const CircularProgressIndicator(),
+      );
+    }
+
+    if (_error != null && _health == null) {
+      return Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: cardDeco(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Could not load vehicle health.',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: Spacing.xs),
+            Text(
+              _error.toString(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+            ),
+            TextButton(onPressed: _load, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+
+    final h = _health ?? const VehicleHealth(overallPercent: 0);
+    final ordered = orderedHealthComponents(h.components);
+    final overallColor = vehicleHealthColorForPercent(h.overallPercent);
+
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: cardDeco(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Vehicle Health',
+            style: AppTextStyles.titleSmall.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: Spacing.md),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
-                width: Dimensions.healthIndicatorSize,
-                height: Dimensions.healthIndicatorSize,
-                child: CircularProgressIndicator(
-                  value: percentage / 100,
-                  strokeWidth: 8,
-                  backgroundColor: AppColors.surfaceMuted,
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                width: 72,
+                height: 72,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox.expand(
+                      child: CircularProgressIndicator(
+                        value: (h.overallPercent.clamp(0, 100)) / 100,
+                        strokeWidth: 8,
+                        backgroundColor: AppColors.surfaceMuted,
+                        valueColor: AlwaysStoppedAnimation<Color>(overallColor),
+                      ),
+                    ),
+                    Text(
+                      '${h.overallPercent.clamp(0, 100)}%',
+                      style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                '$percentage%',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: Spacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Overall car health',
+                      style: AppTextStyles.titleSmall.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      (h.summary != null && h.summary!.trim().isNotEmpty)
+                          ? h.summary!.trim()
+                          : 'Scores come from your maintenance activity and garage data for this vehicle.',
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary, height: 1.35),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: Spacing.sm),
-        Text(label, style: AppTextStyles.bodySmall),
-      ],
+          if (ordered.isNotEmpty) ...[
+            const SizedBox(height: Spacing.md),
+            VehicleHealthSubsystemsStrip(components: ordered),
+          ] else ...[
+            const SizedBox(height: Spacing.sm),
+            Text(
+              'No subsystem data yet.',
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -547,7 +615,7 @@ class _MaintenanceRemindersSection extends StatelessWidget {
           create: (_) => getIt<MaintenanceBloc>()..add(const MaintenanceLoadRequested()),
           child: BlocBuilder<MaintenanceBloc, MaintenanceState>(
             builder: (context, state) {
-              final items = state.upcoming.take(3).toList();
+              final items = state.upcoming.where((u) => u.isActiveReminder).take(3).toList();
               if (state.loading && items.isEmpty) {
                 return const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()));
               }
@@ -562,10 +630,12 @@ class _MaintenanceRemindersSection extends StatelessWidget {
                   for (int i = 0; i < items.length; i++) ...[
                     _ReminderCard(
                       title: items[i].title,
+                      vehicleMakeModel: _trimOrNull(items[i].vehicleLabel),
+                      vehiclePlate: _trimOrNull(items[i].vehiclePlate),
                       subtitle: _dueText(items[i].scheduledAt),
-                      statusLabel: _statusLabel(items[i].scheduledAt),
-                      statusColor: _statusColor(items[i].scheduledAt),
-                      borderColor: _statusColor(items[i].scheduledAt),
+                      statusLabel: _statusLabelFromItem(items[i]),
+                      statusColor: _statusColorFromItem(items[i]),
+                      borderColor: _statusColorFromItem(items[i]),
                       icon: _iconFor(items[i].title),
                     ),
                     if (i != items.length - 1) const SizedBox(height: Spacing.sm),
@@ -577,6 +647,12 @@ class _MaintenanceRemindersSection extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  static String? _trimOrNull(String? s) {
+    final t = s?.trim();
+    if (t == null || t.isEmpty) return null;
+    return t;
   }
 
   static String _dueText(DateTime date) {
@@ -592,6 +668,25 @@ class _MaintenanceRemindersSection extends StatelessWidget {
     return 'Due in $weeks weeks';
   }
 
+  static String _statusLabelFromItem(MaintenanceUpcoming m) {
+    final s = m.displayStatus?.toUpperCase();
+    if (s != null && s.isNotEmpty) {
+      switch (s) {
+        case 'URGENT':
+          return 'Urgent';
+        case 'SOON':
+          return 'Soon';
+        case 'GOOD':
+          return 'Good';
+        case 'DONE':
+          return 'Done';
+        default:
+          return s;
+      }
+    }
+    return _statusLabel(m.scheduledAt);
+  }
+
   static String _statusLabel(DateTime date) {
     final today = DateTime.now();
     final d0 = DateTime(today.year, today.month, today.day);
@@ -600,6 +695,23 @@ class _MaintenanceRemindersSection extends StatelessWidget {
     if (diff < 0) return 'Urgent';
     if (diff <= 3) return 'Soon';
     return 'Good';
+  }
+
+  static Color _statusColorFromItem(MaintenanceUpcoming m) {
+    final s = m.displayStatus?.toUpperCase();
+    if (s != null) {
+      switch (s) {
+        case 'URGENT':
+          return AppColors.danger;
+        case 'SOON':
+          return AppColors.pending;
+        case 'GOOD':
+          return AppColors.success;
+        case 'DONE':
+          return AppColors.textSecondary;
+      }
+    }
+    return _statusColor(m.scheduledAt);
   }
 
   static Color _statusColor(DateTime date) {
@@ -623,6 +735,8 @@ class _MaintenanceRemindersSection extends StatelessWidget {
 
 class _ReminderCard extends StatelessWidget {
   final String title;
+  final String? vehicleMakeModel;
+  final String? vehiclePlate;
   final String subtitle;
   final String statusLabel;
   final Color statusColor;
@@ -631,6 +745,8 @@ class _ReminderCard extends StatelessWidget {
 
   const _ReminderCard({
     required this.title,
+    this.vehicleMakeModel,
+    this.vehiclePlate,
     required this.subtitle,
     required this.statusLabel,
     required this.statusColor,
@@ -669,6 +785,25 @@ class _ReminderCard extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
+                if (vehicleMakeModel != null && vehicleMakeModel!.isNotEmpty) ...[
+                  const SizedBox(height: Spacing.xs),
+                  Text(
+                    vehicleMakeModel!,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (vehiclePlate != null && vehiclePlate!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Plate $vehiclePlate',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: Spacing.xs),
                 Text(
                   subtitle,
@@ -1039,7 +1174,7 @@ class _RecentActivitySectionState extends State<_RecentActivitySection> {
           icon: Icons.check_circle_rounded,
           iconColor: AppColors.success,
           title: '${h.title} completed',
-          subtitle: _timeAgo(h.date, now),
+          subtitle: _historyActivitySubtitle(h, vehicles, now),
         ),
       );
     }
@@ -1065,6 +1200,21 @@ class _RecentActivitySectionState extends State<_RecentActivitySection> {
 
     items.sort((a, b) => b.ts.compareTo(a.ts));
     return items.take(5).toList();
+  }
+
+  static String _historyActivitySubtitle(MaintenanceHistory h, VehiclesState vehicles, DateTime now) {
+    final ago = _timeAgo(h.date, now);
+    if (vehicles is! VehiclesLoaded || h.vehicleId == null || h.vehicleId!.isEmpty) {
+      return ago;
+    }
+    for (final v in vehicles.vehicles) {
+      if (v.id == h.vehicleId) {
+        final name = v.displayName.trim();
+        if (name.isNotEmpty) return '$name · $ago';
+        return '${v.plateNumber} · $ago';
+      }
+    }
+    return ago;
   }
 
   static String _vehicleLabel(Vehicle v) {

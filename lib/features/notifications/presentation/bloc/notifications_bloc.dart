@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../application/usecases/list_notifications_usecase.dart';
 import '../../application/usecases/mark_notification_read_usecase.dart';
-import '../../domain/entities/driver_notification.dart';
 import 'notifications_event.dart';
 import 'notifications_state.dart';
 
@@ -37,7 +36,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     // Optimistic update.
     final current = state.items;
     final updated = current
-        .map((n) => n.id == event.id ? DriverNotification(id: n.id, title: n.title, body: n.body, read: true, createdAt: n.createdAt) : n)
+        .map((n) => n.id == event.id ? n.copyWith(read: true) : n)
         .toList();
     emit(state.copyWith(items: updated));
     try {

@@ -7,40 +7,82 @@ import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../injection/service_locator.dart';
 import '../../../vehicles/domain/entities/vehicle.dart';
 import '../../../vehicles/presentation/bloc/vehicles_bloc.dart';
 import '../../../vehicles/presentation/bloc/vehicles_event.dart';
 import '../../../vehicles/presentation/bloc/vehicles_state.dart';
+import '../../application/usecases/get_maintenance_catalog_usecase.dart';
+import '../../domain/entities/maintenance_catalog.dart';
 import '../bloc/maintenance_bloc.dart';
 import '../bloc/maintenance_event.dart';
 import '../bloc/maintenance_state.dart';
 
 class ScheduleMaintenancePage extends StatefulWidget {
-  const ScheduleMaintenancePage({super.key});
+  const ScheduleMaintenancePage({super.key, this.preselectedVehicleId});
+
+  final String? preselectedVehicleId;
 
   @override
   State<ScheduleMaintenancePage> createState() => _ScheduleMaintenancePageState();
 }
 
 class _ScheduleMaintenancePageState extends State<ScheduleMaintenancePage> {
-  final _titleCtrl = TextEditingController();
+  final _customNameCtrl = TextEditingController();
   DateTime? _date;
   String? _vehicleId;
+  String? _presetId;
+  List<MaintenanceCatalogItem> _presets = const [];
+  String? _catalogError;
+  bool _catalogLoading = true;
   bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
+    _vehicleId = widget.preselectedVehicleId;
     context.read<VehiclesBloc>().add(const VehiclesLoadRequested());
+    _loadCatalog();
+  }
+
+  Future<void> _loadCatalog() async {
+    setState(() {
+      _catalogLoading = true;
+      _catalogError = null;
+    });
+    try {
+      final catalog = await getIt<GetMaintenanceCatalogUseCase>()();
+      if (!mounted) return;
+      setState(() {
+        _presets = catalog.presets;
+        _catalogLoading = false;
+        if (_presetId == null && _presets.isNotEmpty) {
+          _presetId = _presets.first.id;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _catalogLoading = false;
+        _catalogError = e.toString();
+      });
+    }
   }
 
   @override
   void dispose() {
-    _titleCtrl.dispose();
+    _customNameCtrl.dispose();
     super.dispose();
   }
 
-  bool get _canSubmit => _titleCtrl.text.trim().isNotEmpty && _date != null && _vehicleId != null;
+  bool get _needsCustomName => _presetId == MaintenanceCatalogItem.otherId;
+
+  bool get _canSubmit {
+    if (_presetId == null || _presetId!.isEmpty) return false;
+    if (_date == null || _vehicleId == null) return false;
+    if (_needsCustomName && _customNameCtrl.text.trim().isEmpty) return false;
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,88 +111,142 @@ class _ScheduleMaintenancePageState extends State<ScheduleMaintenancePage> {
           ),
         ),
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(Spacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: _titleCtrl,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    hintText: 'Service title (e.g. Oil Change)',
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: Spacing.md),
-                _VehicleField(
-                  vehicleId: _vehicleId,
-                  onTap: _submitting
-                      ? () {}
-                      : () async {
-                          final id = await _pickVehicleId(context);
-                          if (!mounted) return;
-                          if (id == null) return;
-                          setState(() => _vehicleId = id);
-                        },
-                ),
-                const SizedBox(height: Spacing.md),
-                _DateField(
-                  date: _date,
-                  onTap: _submitting
-                      ? () {}
-                      : () async {
-                          final now = DateTime.now();
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _date ?? now.add(const Duration(days: 1)),
-                            firstDate: now,
-                            lastDate: now.add(const Duration(days: 365)),
-                          );
-                          if (!mounted) return;
-                          if (picked == null) return;
-                          setState(() => _date = picked);
-                        },
-                ),
-                const Spacer(),
-                BlocBuilder<MaintenanceBloc, MaintenanceState>(
-                  builder: (context, state) {
-                    final busy = _submitting || state.loading;
-                    return ElevatedButton(
-                      onPressed: (!_canSubmit || busy)
-                          ? null
-                          : () {
-                              setState(() => _submitting = true);
-                              context.read<MaintenanceBloc>().add(
-                                    MaintenanceUpcomingCreateRequested(
-                                      title: _titleCtrl.text.trim(),
-                                      scheduledAt: DateTime(_date!.year, _date!.month, _date!.day),
-                                      vehicleId: _vehicleId!,
-                                    ),
-                                  );
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.textPrimary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: AppColors.border,
-                        padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          child: _catalogLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _catalogError != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(Spacing.lg),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Could not load service types.\n$_catalogError',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                            ),
+                            const SizedBox(height: Spacing.md),
+                            TextButton(onPressed: _loadCatalog, child: const Text('Retry')),
+                          ],
+                        ),
                       ),
-                      child: busy
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Text('Add'),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(Spacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Service type',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: Spacing.xs),
+                          DropdownButtonFormField<String>(
+                            value: _presetId != null && _presets.any((p) => p.id == _presetId) ? _presetId : null,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            items: _presets
+                                .map(
+                                  (p) => DropdownMenuItem(
+                                    value: p.id,
+                                    child: Text(p.label, overflow: TextOverflow.ellipsis),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: _submitting
+                                ? null
+                                : (v) => setState(() {
+                                      _presetId = v;
+                                    }),
+                          ),
+                          if (_needsCustomName) ...[
+                            const SizedBox(height: Spacing.md),
+                            TextField(
+                              controller: _customNameCtrl,
+                              onChanged: (_) => setState(() {}),
+                              decoration: const InputDecoration(
+                                hintText: 'Custom service name',
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: Spacing.md),
+                          _VehicleField(
+                            vehicleId: _vehicleId,
+                            onTap: _submitting
+                                ? () {}
+                                : () async {
+                                    final id = await _pickVehicleId(context);
+                                    if (!mounted) return;
+                                    if (id == null) return;
+                                    setState(() => _vehicleId = id);
+                                  },
+                          ),
+                          const SizedBox(height: Spacing.md),
+                          _DateField(
+                            date: _date,
+                            onTap: _submitting
+                                ? () {}
+                                : () async {
+                                    final now = DateTime.now();
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: _date ?? now.add(const Duration(days: 1)),
+                                      firstDate: now,
+                                      lastDate: now.add(const Duration(days: 365 * 3)),
+                                    );
+                                    if (!mounted) return;
+                                    if (picked == null) return;
+                                    setState(() => _date = picked);
+                                  },
+                          ),
+                          const SizedBox(height: Spacing.xl),
+                          BlocBuilder<MaintenanceBloc, MaintenanceState>(
+                            builder: (context, state) {
+                              final busy = _submitting || state.loading;
+                              return ElevatedButton(
+                                onPressed: (!_canSubmit || busy)
+                                    ? null
+                                    : () {
+                                        setState(() => _submitting = true);
+                                        context.read<MaintenanceBloc>().add(
+                                              MaintenanceUpcomingCreateRequested(
+                                                vehicleId: _vehicleId!,
+                                                presetCategory: _presetId!,
+                                                customServiceName:
+                                                    _needsCustomName ? _customNameCtrl.text.trim() : null,
+                                                scheduledAt: DateTime(_date!.year, _date!.month, _date!.day),
+                                              ),
+                                            );
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.textPrimary,
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor: AppColors.border,
+                                  padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                ),
+                                child: busy
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Text('Add'),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
         ),
       ),
     );
@@ -284,4 +380,3 @@ class _DateField extends StatelessWidget {
 extension<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
 }
-

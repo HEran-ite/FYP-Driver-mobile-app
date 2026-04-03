@@ -11,10 +11,14 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_drawer.dart';
 import '../../../../core/widgets/nav_app_bar.dart';
 import '../../../../injection/service_locator.dart';
+import '../../../maintenance/domain/entities/maintenance_upcoming.dart';
 import '../../../maintenance/presentation/bloc/maintenance_bloc.dart';
 import '../../../maintenance/presentation/bloc/maintenance_event.dart';
 import '../../../maintenance/presentation/bloc/maintenance_state.dart';
 import '../../../maintenance/presentation/pages/schedule_maintenance_page.dart';
+import '../../../maintenance/presentation/models/maintenance_timeline_entry.dart';
+import '../../../maintenance/presentation/widgets/maintenance_timeline_list_item.dart';
+import '../../../maintenance/presentation/widgets/maintenance_upcoming_list_item.dart';
 import '../../domain/entities/vehicle.dart';
 import '../bloc/vehicles_bloc.dart';
 import '../bloc/vehicles_event.dart';
@@ -22,31 +26,35 @@ import '../bloc/vehicles_state.dart';
 import 'vehicle_detail_page.dart';
 
 class VehiclesListPage extends StatelessWidget {
-  const VehiclesListPage({super.key, this.initialTab});
+  const VehiclesListPage({super.key, this.initialTab, this.focusUpcomingId});
 
   /// 0 = My Vehicles, 1 = Upcoming, 2 = History
   final int? initialTab;
+
+  /// When set (e.g. from a notification), Upcoming opens and scrolls to this reminder.
+  final String? focusUpcomingId;
 
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
+        BlocProvider<VehiclesBloc>(
           create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
         ),
-        BlocProvider(
+        BlocProvider<MaintenanceBloc>(
           create: (_) => getIt<MaintenanceBloc>()..add(const MaintenanceLoadRequested()),
         ),
       ],
-      child: _VehiclesHubView(initialTab: initialTab),
+      child: _VehiclesHubView(initialTab: initialTab, focusUpcomingId: focusUpcomingId),
     );
   }
 }
 
 class _VehiclesHubView extends StatefulWidget {
-  const _VehiclesHubView({this.initialTab});
+  const _VehiclesHubView({this.initialTab, this.focusUpcomingId});
 
   final int? initialTab;
+  final String? focusUpcomingId;
 
   @override
   State<_VehiclesHubView> createState() => _VehiclesHubViewState();
@@ -59,7 +67,13 @@ class _VehiclesHubViewState extends State<_VehiclesHubView> {
   void initState() {
     super.initState();
     final t = widget.initialTab;
-    _tab = (t != null && t >= 0 && t <= 2) ? t : 0;
+    if (t != null && t >= 0 && t <= 2) {
+      _tab = t;
+    } else if (widget.focusUpcomingId != null && widget.focusUpcomingId!.trim().isNotEmpty) {
+      _tab = 1;
+    } else {
+      _tab = 0;
+    }
   }
 
   @override
@@ -102,7 +116,7 @@ class _VehiclesHubViewState extends State<_VehiclesHubView> {
                           _tab == 1
                               ? 'Scheduled and recommended services'
                               : _tab == 2
-                                  ? 'Past services and repairs'
+                                  ? 'Scheduled reminders and completed services'
                                   : 'Manage your vehicles and maintenance',
                           style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
                         ),
@@ -121,7 +135,10 @@ class _VehiclesHubViewState extends State<_VehiclesHubView> {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: _tab == 1
-                      ? const _UpcomingMaintenanceTab(key: ValueKey('upcoming'))
+                      ? _UpcomingMaintenanceTab(
+                          key: const ValueKey('upcoming'),
+                          focusUpcomingId: widget.focusUpcomingId,
+                        )
                       : _tab == 2
                           ? const _MaintenanceHistoryTab(key: ValueKey('history'))
                           : const _VehiclesTab(key: ValueKey('vehicles')),
@@ -348,17 +365,61 @@ class _AddNewVehicleCard extends StatelessWidget {
   }
 }
 
-class _UpcomingMaintenanceTab extends StatelessWidget {
-  const _UpcomingMaintenanceTab({super.key});
+class _UpcomingMaintenanceTab extends StatefulWidget {
+  const _UpcomingMaintenanceTab({super.key, this.focusUpcomingId});
+
+  final String? focusUpcomingId;
+
+  @override
+  State<_UpcomingMaintenanceTab> createState() => _UpcomingMaintenanceTabState();
+}
+
+class _UpcomingMaintenanceTabState extends State<_UpcomingMaintenanceTab> {
+  final GlobalKey _focusKey = GlobalKey();
+  bool _didScrollToFocus = false;
+  bool _scrollRequestPosted = false;
+  int _scrollAttempts = 0;
+
+  void _requestScrollToFocus(List<MaintenanceUpcoming> items, String? focusId) {
+    if (focusId == null || focusId.isEmpty || _didScrollToFocus || _scrollRequestPosted) return;
+    if (!items.any((u) => u.id == focusId)) return;
+    _scrollRequestPosted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runFocusScroll());
+  }
+
+  void _runFocusScroll() {
+    if (!mounted || _didScrollToFocus) return;
+    if (_scrollAttempts++ > 18) {
+      _didScrollToFocus = true;
+      return;
+    }
+    final ctx = _focusKey.currentContext;
+    if (ctx != null) {
+      _didScrollToFocus = true;
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.12,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeOutCubic,
+      );
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runFocusScroll());
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<MaintenanceBloc, MaintenanceState>(
       builder: (context, state) {
-        final items = state.upcoming;
+        final fid = widget.focusUpcomingId?.trim();
+        final items = state.upcoming.where((u) {
+          if (fid != null && fid.isNotEmpty && u.id == fid) return true;
+          return u.isActiveReminder;
+        }).toList();
         if (state.loading && items.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
+        _requestScrollToFocus(items, fid);
         return Column(
           children: [
             Expanded(
@@ -367,60 +428,31 @@ class _UpcomingMaintenanceTab extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: Spacing.md),
                 itemBuilder: (context, i) {
                   final m = items[i];
-                  return Container(
-                    padding: const EdgeInsets.all(Spacing.lg),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(22),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: AppColors.shadow,
-                          blurRadius: 18,
-                          offset: Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          m.title,
-                          style: AppTextStyles.titleMedium.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: Spacing.sm),
-                        Row(
-                          children: [
-                            const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
-                            const SizedBox(width: Spacing.xs),
-                            Text(
-                              _formatDate(m.scheduledAt),
-                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: Spacing.md),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            if (!context.mounted) return;
-                            context.read<MaintenanceBloc>().add(MaintenanceUpcomingDeleteRequested(m.id));
-                          },
-                          icon: const Icon(Icons.close_rounded, size: 18),
-                          label: const Text('Cancel'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.textPrimary,
-                            side: const BorderSide(color: AppColors.border),
-                            padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  final isFocus = fid != null && fid.isNotEmpty && m.id == fid;
+                  Widget tile = MaintenanceUpcomingListItem(
+                    item: m,
+                    onDelete: () {
+                      if (!context.mounted) return;
+                      context.read<MaintenanceBloc>().add(MaintenanceUpcomingDeleteRequested(m.id));
+                    },
+                    onToggleReminder: () {
+                      context.read<MaintenanceBloc>().add(MaintenanceToggleReminderRequested(m.id));
+                    },
+                    onMarkDone: m.canMarkDoneFromUi
+                        ? () => context.read<MaintenanceBloc>().add(MaintenanceMarkDoneRequested(m.id))
+                        : null,
                   );
+                  if (isFocus) {
+                    tile = Container(
+                      key: _focusKey,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: AppColors.secondary, width: 2),
+                      ),
+                      child: tile,
+                    );
+                  }
+                  return tile;
                 },
               ),
             ),
@@ -460,12 +492,6 @@ class _UpcomingMaintenanceTab extends StatelessWidget {
       },
     );
   }
-
-  static String _formatDate(DateTime d) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final m = months[d.month - 1];
-    return '$m ${d.day}, ${d.year}';
-  }
 }
 
 VehiclesBloc? _maybeVehiclesBloc(BuildContext context) {
@@ -482,89 +508,42 @@ class _MaintenanceHistoryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<MaintenanceBloc, MaintenanceState>(
-      builder: (context, state) {
-        final items = state.history;
-        if (state.loading && items.isEmpty) {
+      builder: (context, mState) {
+        final timeline = buildMaintenanceTimeline(mState);
+        if (mState.loading && timeline.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
-        return ListView.separated(
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: Spacing.md),
-          itemBuilder: (context, i) {
-            final h = items[i];
-            return Container(
-              padding: const EdgeInsets.all(Spacing.lg),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: const [
-                  BoxShadow(
-                    color: AppColors.shadow,
-                    blurRadius: 18,
-                    offset: Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEAF7EF),
-                      shape: BoxShape.circle,
+        return BlocBuilder<VehiclesBloc, VehiclesState>(
+          builder: (context, vState) {
+            final vehicles = vState is VehiclesLoaded ? vState.vehicles : const <Vehicle>[];
+            return timeline.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                      child: Text(
+                        'Nothing here yet.\n\n'
+                        'Scheduled reminders and completed services show here with status '
+                        '(Good, Soon, Overdue, Done). Use Upcoming to schedule maintenance or mark it done.',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                      ),
                     ),
-                    child: const Icon(Icons.check_rounded, color: AppColors.success),
-                  ),
-                  const SizedBox(width: Spacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          h.title,
-                          style: AppTextStyles.titleMedium.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        if (h.garageName != null && h.garageName!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              h.garageName!,
-                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                            ),
-                          ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
-                              const SizedBox(width: Spacing.xs),
-                              Text(
-                                _formatDate(h.date),
-                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
+                  )
+                : ListView.separated(
+                    itemCount: timeline.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: Spacing.md),
+                    itemBuilder: (context, i) {
+                      final entry = timeline[i];
+                      return MaintenanceTimelineListItem(
+                        entry: entry,
+                        vehicles: vehicles,
+                      );
+                    },
+                  );
           },
         );
       },
     );
-  }
-
-  static String _formatDate(DateTime d) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final m = months[d.month - 1];
-    return '$m ${d.day}, ${d.year}';
   }
 }
 

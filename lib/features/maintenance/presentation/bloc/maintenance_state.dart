@@ -11,14 +11,14 @@ class MaintenanceState extends Equatable {
     this.upcoming = const [],
     this.history = const [],
     this.error,
-    this.usingMockData = false,
+    this.filterVehicleId,
   });
 
   final bool loading;
   final List<MaintenanceUpcoming> upcoming;
   final List<MaintenanceHistory> history;
   final String? error;
-  final bool usingMockData;
+  final String? filterVehicleId;
 
   MaintenanceState copyWith({
     bool? loading,
@@ -26,18 +26,18 @@ class MaintenanceState extends Equatable {
     List<MaintenanceHistory>? history,
     String? error,
     bool clearError = false,
-    bool? usingMockData,
+    String? filterVehicleId,
+    bool hasFilterVehicleId = false,
   }) {
     return MaintenanceState(
       loading: loading ?? this.loading,
       upcoming: upcoming ?? this.upcoming,
       history: history ?? this.history,
       error: clearError ? null : (error ?? this.error),
-      usingMockData: usingMockData ?? this.usingMockData,
+      filterVehicleId: hasFilterVehicleId ? filterVehicleId : this.filterVehicleId,
     );
   }
 
   @override
-  List<Object?> get props => [loading, upcoming, history, error, usingMockData];
+  List<Object?> get props => [loading, upcoming, history, error, filterVehicleId];
 }
-

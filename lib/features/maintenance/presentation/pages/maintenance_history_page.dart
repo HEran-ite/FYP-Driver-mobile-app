@@ -7,9 +7,15 @@ import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/nav_app_bar.dart';
+import '../../../vehicles/domain/entities/vehicle.dart';
+import '../../../vehicles/presentation/bloc/vehicles_bloc.dart';
+import '../../../vehicles/presentation/bloc/vehicles_event.dart';
+import '../../../vehicles/presentation/bloc/vehicles_state.dart';
 import '../bloc/maintenance_bloc.dart';
 import '../bloc/maintenance_event.dart';
 import '../bloc/maintenance_state.dart';
+import '../models/maintenance_timeline_entry.dart';
+import '../widgets/maintenance_timeline_list_item.dart';
 
 class MaintenanceHistoryPage extends StatefulWidget {
   const MaintenanceHistoryPage({super.key});
@@ -23,6 +29,12 @@ class _MaintenanceHistoryPageState extends State<MaintenanceHistoryPage> {
   void initState() {
     super.initState();
     context.read<MaintenanceBloc>().add(const MaintenanceLoadRequested());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        context.read<VehiclesBloc>().add(const VehiclesLoadRequested());
+      } catch (_) {}
+    });
   }
 
   @override
@@ -55,7 +67,7 @@ class _MaintenanceHistoryPageState extends State<MaintenanceHistoryPage> {
                           ),
                         ),
                         Text(
-                          'Past services and repairs',
+                          'Scheduled reminders and completed services',
                           style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
                         ),
                       ],
@@ -66,80 +78,38 @@ class _MaintenanceHistoryPageState extends State<MaintenanceHistoryPage> {
               const SizedBox(height: Spacing.md),
               Expanded(
                 child: BlocBuilder<MaintenanceBloc, MaintenanceState>(
-                  builder: (context, state) {
-                    if (state.loading && state.history.isEmpty) {
+                  builder: (context, mState) {
+                    final timeline = buildMaintenanceTimeline(mState);
+                    if (mState.loading && timeline.isEmpty) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    final items = state.history;
-                    if (items.isEmpty) {
-                      return Center(
-                        child: Text(
-                          'No history yet.',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
-                        ),
-                      );
-                    }
-                    return ListView.separated(
-                      itemCount: items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: Spacing.md),
-                      itemBuilder: (context, i) {
-                        final h = items[i];
-                        final dateStr = _formatDate(h.date);
-                        return Container(
-                          padding: const EdgeInsets.all(Spacing.lg),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(22),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: AppColors.shadow,
-                                blurRadius: 18,
-                                offset: Offset(0, 10),
+                    return BlocBuilder<VehiclesBloc, VehiclesState>(
+                      builder: (context, vState) {
+                        final vehicles = vState is VehiclesLoaded ? vState.vehicles : const <Vehicle>[];
+                        if (timeline.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                              child: Text(
+                                'Nothing here yet.\n\n'
+                                'Reminders and completed services appear here with status '
+                                '(Good, Soon, Overdue, Done). Use Upcoming to schedule or mark work complete.',
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 22),
-                              const SizedBox(width: Spacing.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      h.title,
-                                      style: AppTextStyles.titleMedium.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    if (h.garageName != null && h.garageName!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Text(
-                                          h.garageName!,
-                                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                                        ),
-                                      ),
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 6),
-                                      child: Row(
-                                        children: [
-                                          const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
-                                          const SizedBox(width: Spacing.xs),
-                                          Text(dateStr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () => context.read<MaintenanceBloc>().add(MaintenanceHistoryDeleteRequested(h.id)),
-                                icon: const Icon(Icons.delete_outline, color: AppColors.textSecondary),
-                              ),
-                            ],
-                          ),
+                            ),
+                          );
+                        }
+                        return ListView.separated(
+                          itemCount: timeline.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: Spacing.md),
+                          itemBuilder: (context, i) {
+                            final entry = timeline[i];
+                            return MaintenanceTimelineListItem(
+                              entry: entry,
+                              vehicles: vehicles,
+                            );
+                          },
                         );
                       },
                     );
@@ -152,11 +122,4 @@ class _MaintenanceHistoryPageState extends State<MaintenanceHistoryPage> {
       ),
     );
   }
-
-  static String _formatDate(DateTime d) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final m = months[d.month - 1];
-    return '$m ${d.day}, ${d.year}';
-  }
 }
-

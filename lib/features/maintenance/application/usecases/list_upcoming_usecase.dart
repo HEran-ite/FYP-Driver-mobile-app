@@ -7,6 +7,9 @@ class ListUpcomingUseCase {
   ListUpcomingUseCase(this._repo);
   final MaintenanceRepository _repo;
 
-  Future<List<MaintenanceUpcoming>> call() => _repo.listUpcoming();
+  Future<List<MaintenanceUpcoming>> call({
+    String? vehicleId,
+    bool includeCompleted = false,
+  }) =>
+      _repo.listUpcoming(vehicleId: vehicleId, includeCompleted: includeCompleted);
 }
-

@@ -68,8 +68,13 @@ import '../features/maintenance/application/usecases/list_upcoming_usecase.dart'
 import '../features/maintenance/application/usecases/list_history_usecase.dart';
 import '../features/maintenance/application/usecases/create_upcoming_usecase.dart';
 import '../features/maintenance/application/usecases/delete_upcoming_usecase.dart';
+import '../features/maintenance/application/usecases/create_history_usecase.dart';
 import '../features/maintenance/application/usecases/delete_history_usecase.dart';
 import '../features/maintenance/application/usecases/toggle_reminder_usecase.dart';
+import '../features/maintenance/application/usecases/update_history_usecase.dart';
+import '../features/maintenance/application/usecases/get_maintenance_catalog_usecase.dart';
+import '../features/maintenance/application/usecases/mark_reminder_done_usecase.dart';
+import '../features/maintenance/application/usecases/get_vehicle_health_usecase.dart';
 import '../features/maintenance/presentation/bloc/maintenance_bloc.dart';
 import '../features/notifications/data/datasources/notifications_remote_datasource.dart';
 import '../features/notifications/data/datasources/notifications_remote_datasource_impl.dart';
@@ -90,6 +95,9 @@ import '../features/education/presentation/bloc/education_bloc.dart';
 final getIt = GetIt.instance;
 
 Future<void> setupServiceLocator() async {
+  // Avoid stale registrations across restarts / hot-restart (e.g. updated factory signatures).
+  await getIt.reset();
+
   // Auth local (token storage)
   getIt.registerLazySingleton<AuthLocalDataSourceImpl>(
     () => AuthLocalDataSourceImpl(),
@@ -274,15 +282,25 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton(() => CreateUpcomingUseCase(getIt<MaintenanceRepository>()));
   getIt.registerLazySingleton(() => DeleteUpcomingUseCase(getIt<MaintenanceRepository>()));
   getIt.registerLazySingleton(() => DeleteHistoryUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton(() => CreateHistoryUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton(() => UpdateHistoryUseCase(getIt<MaintenanceRepository>()));
   getIt.registerLazySingleton(() => ToggleReminderUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerFactory(
+  getIt.registerLazySingleton(() => GetMaintenanceCatalogUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton(() => MarkReminderDoneUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton<GetVehicleHealthUseCase>(
+    () => GetVehicleHealthUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerFactory<MaintenanceBloc>(
     () => MaintenanceBloc(
       listUpcoming: getIt<ListUpcomingUseCase>(),
       listHistory: getIt<ListHistoryUseCase>(),
       createUpcoming: getIt<CreateUpcomingUseCase>(),
       deleteUpcoming: getIt<DeleteUpcomingUseCase>(),
       deleteHistory: getIt<DeleteHistoryUseCase>(),
+      createHistory: getIt<CreateHistoryUseCase>(),
+      updateHistory: getIt<UpdateHistoryUseCase>(),
       toggleReminder: getIt<ToggleReminderUseCase>(),
+      markReminderDone: getIt<MarkReminderDoneUseCase>(),
     ),
   );
 
