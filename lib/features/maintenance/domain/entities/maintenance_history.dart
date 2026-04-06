@@ -9,6 +9,8 @@ class MaintenanceHistory extends Equatable {
     required this.date,
     this.garageName,
     this.amount,
+    this.vehicleId,
+    this.notes,
   });
 
   final String id;
@@ -16,8 +18,10 @@ class MaintenanceHistory extends Equatable {
   final DateTime date;
   final String? garageName;
   final num? amount;
+  final String? vehicleId;
+  final String? notes;
 
   @override
-  List<Object?> get props => [id, title, date, garageName, amount];
+  List<Object?> get props => [id, title, date, garageName, amount, vehicleId, notes];
 }
 

@@ -167,15 +167,24 @@ class _AuthSessionShellState extends State<_AuthSessionShell>
               ),
           '/maintenance/upcoming': (context) => MultiBlocProvider(
                 providers: [
-                  BlocProvider(create: (_) => getIt<MaintenanceBloc>()),
-                  BlocProvider(
+                  BlocProvider<MaintenanceBloc>(
+                    create: (_) => getIt<MaintenanceBloc>(),
+                  ),
+                  BlocProvider<VehiclesBloc>(
                     create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
                   ),
                 ],
                 child: const MaintenanceUpcomingPage(),
               ),
-          '/maintenance/history': (context) => BlocProvider(
-                create: (_) => getIt<MaintenanceBloc>(),
+          '/maintenance/history': (context) => MultiBlocProvider(
+                providers: [
+                  BlocProvider<MaintenanceBloc>(
+                    create: (_) => getIt<MaintenanceBloc>(),
+                  ),
+                  BlocProvider<VehiclesBloc>(
+                    create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
+                  ),
+                ],
                 child: const MaintenanceHistoryPage(),
               ),
           '/notifications': (context) => const NotificationsPage(),
@@ -199,12 +208,17 @@ class _AuthSessionShellState extends State<_AuthSessionShell>
           '/vehicles': (context) {
             final args = ModalRoute.of(context)?.settings.arguments;
             int? tab;
+            String? focusUpcomingId;
             if (args is Map) {
               final v = args['tab'];
               if (v is int) tab = v;
               if (v is String) tab = int.tryParse(v);
+              final f = args['focusUpcomingId'] ?? args['upcomingId'];
+              if (f != null && f.toString().trim().isNotEmpty) {
+                focusUpcomingId = f.toString().trim();
+              }
             }
-            return VehiclesListPage(initialTab: tab);
+            return VehiclesListPage(initialTab: tab, focusUpcomingId: focusUpcomingId);
           },
           '/vehicles/detail': (context) {
             final args = ModalRoute.of(context)?.settings.arguments;

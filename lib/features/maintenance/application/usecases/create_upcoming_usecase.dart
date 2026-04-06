@@ -8,16 +8,21 @@ class CreateUpcomingUseCase {
   final MaintenanceRepository _repo;
 
   Future<MaintenanceUpcoming> call({
-    required String title,
-    required DateTime scheduledAt,
-    String? estimatedCost,
     required String vehicleId,
+    required String presetCategory,
+    String? customServiceName,
+    required DateTime scheduledAt,
+    num? estimatedCostMin,
+    num? estimatedCostMax,
+    String? notes,
   }) =>
       _repo.createUpcoming(
-        title: title,
-        scheduledAt: scheduledAt,
-        estimatedCost: estimatedCost,
         vehicleId: vehicleId,
+        presetCategory: presetCategory,
+        customServiceName: customServiceName,
+        scheduledAt: scheduledAt,
+        estimatedCostMin: estimatedCostMin,
+        estimatedCostMax: estimatedCostMax,
+        notes: notes,
       );
 }
-

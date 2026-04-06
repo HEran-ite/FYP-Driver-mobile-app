@@ -9,6 +9,7 @@ class DriverNotification extends Equatable {
     required this.body,
     required this.read,
     required this.createdAt,
+    this.upcomingId,
   });
 
   final String id;
@@ -16,8 +17,28 @@ class DriverNotification extends Equatable {
   final String body;
   final bool read;
   final DateTime createdAt;
+  /// Maintenance upcoming / reminder id when the API sends it (for deep-linking).
+  final String? upcomingId;
+
+  DriverNotification copyWith({
+    String? id,
+    String? title,
+    String? body,
+    bool? read,
+    DateTime? createdAt,
+    String? upcomingId,
+  }) {
+    return DriverNotification(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      read: read ?? this.read,
+      createdAt: createdAt ?? this.createdAt,
+      upcomingId: upcomingId ?? this.upcomingId,
+    );
+  }
 
   @override
-  List<Object?> get props => [id, title, body, read, createdAt];
+  List<Object?> get props => [id, title, body, read, createdAt, upcomingId];
 }
 

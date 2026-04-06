@@ -9,6 +9,8 @@ class MaintenanceHistoryModel {
     required this.date,
     this.garageName,
     this.amount,
+    this.vehicleId,
+    this.notes,
   });
 
   final String id;
@@ -16,6 +18,8 @@ class MaintenanceHistoryModel {
   final DateTime date;
   final String? garageName;
   final num? amount;
+  final String? vehicleId;
+  final String? notes;
 
   factory MaintenanceHistoryModel.fromJson(Map<String, dynamic>? json) {
     final m = json ?? const <String, dynamic>{};
@@ -31,12 +35,14 @@ class MaintenanceHistoryModel {
     }
 
     return MaintenanceHistoryModel(
-      id: m['id']?.toString() ?? '',
+      id: m['id']?.toString() ?? m['_id']?.toString() ?? '',
       // Backend (driver-maintenance-yordi): serviceName, serviceDate, cost
       title: m['serviceName']?.toString() ?? m['title']?.toString() ?? m['service']?.toString() ?? 'Maintenance',
       date: parseDate(m['serviceDate'] ?? m['date'] ?? m['completedAt'] ?? m['scheduledAt']),
       garageName: m['garageName']?.toString() ?? m['centerName']?.toString(),
       amount: parseNum(m['amount'] ?? m['cost'] ?? m['price']),
+      vehicleId: m['vehicleId']?.toString() ?? m['vehicle_id']?.toString(),
+      notes: m['notes']?.toString(),
     );
   }
 
@@ -46,6 +52,8 @@ class MaintenanceHistoryModel {
         date: date,
         garageName: garageName,
         amount: amount,
+        vehicleId: vehicleId,
+        notes: notes,
       );
 }
 
