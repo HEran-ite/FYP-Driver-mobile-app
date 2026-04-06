@@ -15,15 +15,49 @@ class VehicleHealthSubsystemsStrip extends StatelessWidget {
     super.key,
     required this.components,
     this.sectionTitle = 'Subsystem health',
+    this.collapseCustomToOther = false,
   });
 
   final List<VehicleHealthComponent> components;
   final String? sectionTitle;
+  final bool collapseCustomToOther;
+
+  static const Set<String> _knownSubsystemLabels = {
+    'engine',
+    'brakes',
+    'tires',
+    'battery',
+    'coolant',
+    'transmission',
+    'air filter',
+    'wipers & lights',
+    'other',
+  };
+
+  List<VehicleHealthComponent> _collapseToOther(List<VehicleHealthComponent> list) {
+    final out = <VehicleHealthComponent>[];
+    final custom = <VehicleHealthComponent>[];
+    for (final c in list) {
+      final k = c.label.trim().toLowerCase();
+      if (_knownSubsystemLabels.contains(k)) {
+        out.add(c);
+      } else {
+        custom.add(c);
+      }
+    }
+    if (custom.isNotEmpty) {
+      final sum = custom.fold<int>(0, (a, c) => a + c.percent);
+      final avg = (sum / custom.length).round();
+      out.add(VehicleHealthComponent(label: 'Other', percent: avg));
+    }
+    return out;
+  }
 
   @override
   Widget build(BuildContext context) {
     if (components.isEmpty) return const SizedBox.shrink();
-    final ordered = orderedHealthComponents(components);
+    final base = collapseCustomToOther ? _collapseToOther(components) : components;
+    final ordered = orderedHealthComponents(base);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -62,13 +96,18 @@ class VehicleHealthSubsystemsStrip extends StatelessWidget {
               ],
             );
 
-            // Vertical padding so ring strokes are not clipped by the scroll viewport.
+            // Padding keeps rings from touching/clipping on card edges.
             final scroll = SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              clipBehavior: Clip.none,
+              // Clip to the card bounds so rings don't paint outside.
+              // Safe because the ring stroke is inset inside its box.
+              clipBehavior: Clip.hardEdge,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 6,
+                  horizontal: Spacing.xs,
+                ),
                 child: row,
               ),
             );

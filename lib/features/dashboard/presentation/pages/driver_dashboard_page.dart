@@ -563,7 +563,10 @@ class _VehicleHealthSectionState extends State<_VehicleHealthSection> {
           ),
           if (ordered.isNotEmpty) ...[
             const SizedBox(height: Spacing.md),
-            VehicleHealthSubsystemsStrip(components: ordered),
+            VehicleHealthSubsystemsStrip(
+              components: ordered,
+              collapseCustomToOther: true,
+            ),
           ] else ...[
             const SizedBox(height: Spacing.sm),
             Text(
