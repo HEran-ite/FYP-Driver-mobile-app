@@ -55,7 +55,7 @@ class DriverDashboardPage extends StatelessWidget {
           backgroundColor: AppColors.primary,
           elevation: 0,
           shape: const CircleBorder(),
-          onPressed: () {},
+          onPressed: () => Navigator.of(context).pushNamed('/ai-chat'),
           child: const ImageIcon(AssetImage('assets/images/ai_Icon.png')),
         ),
       ),
@@ -879,9 +879,7 @@ class _QuickActionsSection extends StatelessWidget {
             _FilledActionButton(
               label: 'Chat with AI Assistant',
               icon: Icons.chat_bubble_outline,
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('AI Assistant is coming soon.')),
-              ),
+              onTap: () => Navigator.of(context).pushNamed('/ai-chat'),
             ),
             const SizedBox(height: Spacing.sm),
             _OutlinedActionButton(

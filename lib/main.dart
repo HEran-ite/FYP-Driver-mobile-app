@@ -46,6 +46,8 @@ import 'features/education/presentation/bloc/education_bloc.dart';
 import 'features/education/presentation/bloc/education_event.dart';
 import 'features/education/presentation/pages/education_center_page.dart';
 import 'features/education/presentation/pages/education_articles_list_page.dart';
+import 'features/ai/presentation/pages/ai_chat_page.dart';
+import 'features/ai/presentation/pages/ai_chat_history_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -231,6 +233,18 @@ class _AuthSessionShellState extends State<_AuthSessionShell>
             final vehicle = args is Vehicle ? args : null;
             return AddVehiclePage(editVehicle: vehicle);
           },
+          '/ai-chat': (context) {
+            final args = ModalRoute.of(context)?.settings.arguments;
+            String? sessionId;
+            if (args is String) {
+              sessionId = args;
+            } else if (args is Map) {
+              final sid = args['sessionId'];
+              if (sid != null) sessionId = sid.toString();
+            }
+            return AiChatPage(initialSessionId: sessionId);
+          },
+          '/ai-chat/history': (context) => const AiChatHistoryPage(),
         },
       ),
     );
