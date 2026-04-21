@@ -91,6 +91,9 @@ import '../features/education/application/usecases/list_education_articles_useca
 import '../features/education/application/usecases/search_education_articles_usecase.dart';
 import '../features/education/application/usecases/get_education_article_usecase.dart';
 import '../features/education/presentation/bloc/education_bloc.dart';
+import '../features/ai/data/ai_api_client.dart';
+import '../features/ai/data/repositories/ai_chat_repository.dart';
+import '../features/ai/presentation/bloc/ai_chat_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -335,5 +338,16 @@ Future<void> setupServiceLocator() async {
       listArticles: getIt<ListEducationArticlesUseCase>(),
       searchArticles: getIt<SearchEducationArticlesUseCase>(),
     ),
+  );
+
+  // AI Chat
+  getIt.registerLazySingleton<AiApiClient>(
+    () => AiApiClient(authLocal: getIt<AuthLocalDataSource>()),
+  );
+  getIt.registerLazySingleton<AiChatRepository>(
+    () => AiChatRepository(getIt<AiApiClient>()),
+  );
+  getIt.registerFactory<AiChatBloc>(
+    () => AiChatBloc(getIt<AiChatRepository>()),
   );
 }
