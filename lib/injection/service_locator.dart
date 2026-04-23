@@ -14,6 +14,7 @@ import '../features/appointments/data/datasources/appointment_remote_datasource_
 import '../features/auth/data/repositories/auth_repository_impl.dart';
 import '../features/auth/domain/repositories/auth_repository.dart';
 import '../features/auth/application/usecases/check_auth_usecase.dart';
+import '../features/auth/application/usecases/change_password_usecase.dart';
 import '../features/auth/application/usecases/login_usecase.dart';
 import '../features/auth/application/usecases/logout_usecase.dart';
 import '../features/auth/application/usecases/signup_usecase.dart';
@@ -57,8 +58,16 @@ import '../features/community/data/datasources/community_remote_datasource_impl.
 import '../features/community/data/repositories/community_repository_impl.dart';
 import '../features/community/domain/repositories/community_repository.dart';
 import '../features/community/application/usecases/list_posts_usecase.dart';
+import '../features/community/application/usecases/list_bookmarked_posts_usecase.dart';
 import '../features/community/application/usecases/create_post_usecase.dart';
 import '../features/community/application/usecases/delete_post_usecase.dart';
+import '../features/community/application/usecases/edit_post_usecase.dart';
+import '../features/community/application/usecases/toggle_post_like_usecase.dart';
+import '../features/community/application/usecases/toggle_post_bookmark_usecase.dart';
+import '../features/community/application/usecases/report_post_usecase.dart';
+import '../features/community/application/usecases/list_post_comments_usecase.dart';
+import '../features/community/application/usecases/create_post_comment_usecase.dart';
+import '../features/community/application/usecases/delete_post_comment_usecase.dart';
 import '../features/community/presentation/bloc/community_bloc.dart';
 import '../features/maintenance/data/datasources/maintenance_remote_datasource.dart';
 import '../features/maintenance/data/datasources/maintenance_remote_datasource_impl.dart';
@@ -81,6 +90,7 @@ import '../features/notifications/data/datasources/notifications_remote_datasour
 import '../features/notifications/data/repositories/notifications_repository_impl.dart';
 import '../features/notifications/domain/repositories/notifications_repository.dart';
 import '../features/notifications/application/usecases/list_notifications_usecase.dart';
+import '../features/notifications/application/usecases/mark_all_notifications_read_usecase.dart';
 import '../features/notifications/application/usecases/mark_notification_read_usecase.dart';
 import '../features/notifications/presentation/bloc/notifications_bloc.dart';
 import '../features/education/data/datasources/education_remote_datasource.dart';
@@ -143,7 +153,12 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton(() => SignupUseCase(getIt<AuthRepository>()));
   getIt.registerLazySingleton(() => LogoutUseCase(getIt<AuthRepository>()));
   getIt.registerLazySingleton(() => CheckAuthUseCase(getIt<AuthRepository>()));
-  getIt.registerLazySingleton(() => UpdateProfileUseCase(getIt<AuthRepository>()));
+  getIt.registerLazySingleton(
+    () => ChangePasswordUseCase(getIt<AuthRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => UpdateProfileUseCase(getIt<AuthRepository>()),
+  );
 
   // Auth BLoC (singleton so API 401 handler updates the same instance as [BlocProvider])
   getIt.registerLazySingleton(
@@ -161,7 +176,8 @@ Future<void> setupServiceLocator() async {
     () => AppointmentRemoteDataSourceImpl(getIt<ApiClient>().dio),
   );
   getIt.registerLazySingleton<AppointmentRemoteDataSource>(
-    () => getIt<AppointmentRemoteDataSourceImpl>() as AppointmentRemoteDataSource,
+    () =>
+        getIt<AppointmentRemoteDataSourceImpl>() as AppointmentRemoteDataSource,
   );
 
   // Appointments repository
@@ -170,10 +186,18 @@ Future<void> setupServiceLocator() async {
   );
 
   // Appointments use cases
-  getIt.registerLazySingleton(() => ListAppointmentsUseCase(getIt<AppointmentRepository>()));
-  getIt.registerLazySingleton(() => BookAppointmentUseCase(getIt<AppointmentRepository>()));
-  getIt.registerLazySingleton(() => RescheduleAppointmentUseCase(getIt<AppointmentRepository>()));
-  getIt.registerLazySingleton(() => CancelAppointmentUseCase(getIt<AppointmentRepository>()));
+  getIt.registerLazySingleton(
+    () => ListAppointmentsUseCase(getIt<AppointmentRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => BookAppointmentUseCase(getIt<AppointmentRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => RescheduleAppointmentUseCase(getIt<AppointmentRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => CancelAppointmentUseCase(getIt<AppointmentRepository>()),
+  );
 
   // Appointments BLoC
   getIt.registerFactory(
@@ -190,7 +214,9 @@ Future<void> setupServiceLocator() async {
     () => ServiceLocatorRemoteDataSourceImpl(getIt<ApiClient>().dio),
   );
   getIt.registerLazySingleton<ServiceLocatorRemoteDataSource>(
-    () => getIt<ServiceLocatorRemoteDataSourceImpl>() as ServiceLocatorRemoteDataSource,
+    () =>
+        getIt<ServiceLocatorRemoteDataSourceImpl>()
+            as ServiceLocatorRemoteDataSource,
   );
   getIt.registerLazySingleton<ServiceLocatorRepository>(
     () => ServiceLocatorRepositoryImpl(getIt<ServiceLocatorRemoteDataSource>()),
@@ -215,9 +241,7 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton<PlacesRepository>(
     () => PlacesRepositoryImpl(getIt<PlacesRemoteDataSource>()),
   );
-  getIt.registerFactory(
-    () => PlacesBloc(getIt<PlacesRepository>()),
-  );
+  getIt.registerFactory(() => PlacesBloc(getIt<PlacesRepository>()));
 
   // Directions
   getIt.registerLazySingleton<DirectionsRemoteDataSource>(
@@ -226,9 +250,7 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton<DirectionsRepository>(
     () => DirectionsRepositoryImpl(getIt<DirectionsRemoteDataSource>()),
   );
-  getIt.registerFactory(
-    () => DirectionsBloc(getIt<DirectionsRepository>()),
-  );
+  getIt.registerFactory(() => DirectionsBloc(getIt<DirectionsRepository>()));
 
   // Vehicles
   getIt.registerLazySingleton<VehicleRemoteDataSourceImpl>(
@@ -240,11 +262,21 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton<VehicleRepository>(
     () => VehicleRepositoryImpl(getIt<VehicleRemoteDataSource>()),
   );
-  getIt.registerLazySingleton(() => ListVehiclesUseCase(getIt<VehicleRepository>()));
-  getIt.registerLazySingleton(() => GetVehicleUseCase(getIt<VehicleRepository>()));
-  getIt.registerLazySingleton(() => AddVehicleUseCase(getIt<VehicleRepository>()));
-  getIt.registerLazySingleton(() => UpdateVehicleUseCase(getIt<VehicleRepository>()));
-  getIt.registerLazySingleton(() => DeleteVehicleUseCase(getIt<VehicleRepository>()));
+  getIt.registerLazySingleton(
+    () => ListVehiclesUseCase(getIt<VehicleRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => GetVehicleUseCase(getIt<VehicleRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => AddVehicleUseCase(getIt<VehicleRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => UpdateVehicleUseCase(getIt<VehicleRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => DeleteVehicleUseCase(getIt<VehicleRepository>()),
+  );
   getIt.registerFactory(
     () => VehiclesBloc(
       listVehiclesUseCase: getIt<ListVehiclesUseCase>(),
@@ -262,14 +294,52 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton<CommunityRepository>(
     () => CommunityRepositoryImpl(getIt<CommunityRemoteDataSource>()),
   );
-  getIt.registerLazySingleton(() => ListPostsUseCase(getIt<CommunityRepository>()));
-  getIt.registerLazySingleton(() => CreatePostUseCase(getIt<CommunityRepository>()));
-  getIt.registerLazySingleton(() => DeletePostUseCase(getIt<CommunityRepository>()));
+  getIt.registerLazySingleton(
+    () => ListPostsUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => ListBookmarkedPostsUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => CreatePostUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => EditPostUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => DeletePostUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => TogglePostLikeUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => TogglePostBookmarkUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => ReportPostUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => ListPostCommentsUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => CreatePostCommentUseCase(getIt<CommunityRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => DeletePostCommentUseCase(getIt<CommunityRepository>()),
+  );
   getIt.registerFactory(
     () => CommunityBloc(
       listPostsUseCase: getIt<ListPostsUseCase>(),
+      listBookmarkedPostsUseCase: getIt<ListBookmarkedPostsUseCase>(),
       createPostUseCase: getIt<CreatePostUseCase>(),
+      editPostUseCase: getIt<EditPostUseCase>(),
       deletePostUseCase: getIt<DeletePostUseCase>(),
+      togglePostLikeUseCase: getIt<TogglePostLikeUseCase>(),
+      togglePostBookmarkUseCase: getIt<TogglePostBookmarkUseCase>(),
+      reportPostUseCase: getIt<ReportPostUseCase>(),
+      listPostCommentsUseCase: getIt<ListPostCommentsUseCase>(),
+      createPostCommentUseCase: getIt<CreatePostCommentUseCase>(),
+      deletePostCommentUseCase: getIt<DeletePostCommentUseCase>(),
     ),
   );
 
@@ -280,16 +350,36 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton<MaintenanceRepository>(
     () => MaintenanceRepositoryImpl(getIt<MaintenanceRemoteDataSource>()),
   );
-  getIt.registerLazySingleton(() => ListUpcomingUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerLazySingleton(() => ListHistoryUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerLazySingleton(() => CreateUpcomingUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerLazySingleton(() => DeleteUpcomingUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerLazySingleton(() => DeleteHistoryUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerLazySingleton(() => CreateHistoryUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerLazySingleton(() => UpdateHistoryUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerLazySingleton(() => ToggleReminderUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerLazySingleton(() => GetMaintenanceCatalogUseCase(getIt<MaintenanceRepository>()));
-  getIt.registerLazySingleton(() => MarkReminderDoneUseCase(getIt<MaintenanceRepository>()));
+  getIt.registerLazySingleton(
+    () => ListUpcomingUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => ListHistoryUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => CreateUpcomingUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => DeleteUpcomingUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => DeleteHistoryUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => CreateHistoryUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => UpdateHistoryUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => ToggleReminderUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => GetMaintenanceCatalogUseCase(getIt<MaintenanceRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => MarkReminderDoneUseCase(getIt<MaintenanceRepository>()),
+  );
   getIt.registerLazySingleton<GetVehicleHealthUseCase>(
     () => GetVehicleHealthUseCase(getIt<MaintenanceRepository>()),
   );
@@ -314,12 +404,20 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton<NotificationsRepository>(
     () => NotificationsRepositoryImpl(getIt<NotificationsRemoteDataSource>()),
   );
-  getIt.registerLazySingleton(() => ListNotificationsUseCase(getIt<NotificationsRepository>()));
-  getIt.registerLazySingleton(() => MarkNotificationReadUseCase(getIt<NotificationsRepository>()));
+  getIt.registerLazySingleton(
+    () => ListNotificationsUseCase(getIt<NotificationsRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => MarkNotificationReadUseCase(getIt<NotificationsRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => MarkAllNotificationsReadUseCase(getIt<NotificationsRepository>()),
+  );
   getIt.registerLazySingleton(
     () => NotificationsBloc(
       list: getIt<ListNotificationsUseCase>(),
       markRead: getIt<MarkNotificationReadUseCase>(),
+      markAllRead: getIt<MarkAllNotificationsReadUseCase>(),
     ),
   );
 
@@ -330,9 +428,15 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton<EducationRepository>(
     () => EducationRepositoryImpl(getIt<EducationRemoteDataSource>()),
   );
-  getIt.registerLazySingleton(() => ListEducationArticlesUseCase(getIt<EducationRepository>()));
-  getIt.registerLazySingleton(() => SearchEducationArticlesUseCase(getIt<EducationRepository>()));
-  getIt.registerLazySingleton(() => GetEducationArticleUseCase(getIt<EducationRepository>()));
+  getIt.registerLazySingleton(
+    () => ListEducationArticlesUseCase(getIt<EducationRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => SearchEducationArticlesUseCase(getIt<EducationRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => GetEducationArticleUseCase(getIt<EducationRepository>()),
+  );
   getIt.registerFactory(
     () => EducationBloc(
       listArticles: getIt<ListEducationArticlesUseCase>(),

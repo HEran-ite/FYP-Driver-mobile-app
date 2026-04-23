@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/dimensions.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_drawer.dart';
@@ -30,9 +33,7 @@ class ServiceLocatorPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (_) => getIt<ServiceLocatorBloc>(),
-        ),
+        BlocProvider(create: (_) => getIt<ServiceLocatorBloc>()),
         BlocProvider(
           create: (_) =>
               getIt<AppointmentsBloc>()..add(const AppointmentsLoadRequested()),
@@ -101,8 +102,8 @@ class _ServiceLocatorViewState extends State<_ServiceLocatorView> {
 
     if (!mounted) return;
     context.read<ServiceLocatorBloc>().add(
-          LoadNearbyGarages(latitude: lat, longitude: lng),
-        );
+      LoadNearbyGarages(latitude: lat, longitude: lng),
+    );
   }
 
   @override
@@ -117,7 +118,9 @@ class _ServiceLocatorViewState extends State<_ServiceLocatorView> {
               curr is AppointmentActionSuccess || curr is AppointmentsFailure,
           listener: (context, state) {
             if (state is AppointmentActionSuccess) {
-              context.read<AppointmentsBloc>().add(const AppointmentsLoadRequested());
+              context.read<AppointmentsBloc>().add(
+                const AppointmentsLoadRequested(),
+              );
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('Appointment updated.'),
@@ -136,61 +139,61 @@ class _ServiceLocatorViewState extends State<_ServiceLocatorView> {
               );
             }
           },
-          builder: (context, _) => BlocBuilder<ServiceLocatorBloc, ServiceLocatorState>(
-            builder: (context, state) {
-              if (state.isLoading && state.centers.isEmpty) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (state.failureMessage != null && state.centers.isEmpty) {
-                return _ServiceErrorView(
-                  message: state.failureMessage!,
-                  onRetry: _loadNearbyWithLocation,
-                );
-              }
+          builder: (context, _) =>
+              BlocBuilder<ServiceLocatorBloc, ServiceLocatorState>(
+                builder: (context, state) {
+                  if (state.isLoading && state.centers.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (state.failureMessage != null && state.centers.isEmpty) {
+                    return _ServiceErrorView(
+                      message: state.failureMessage!,
+                      onRetry: _loadNearbyWithLocation,
+                    );
+                  }
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.lg,
-                  vertical: Spacing.lg,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Service Centers',
-                      style: AppTextStyles.headlineSmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Spacing.lg,
+                      vertical: Spacing.lg,
                     ),
-                    const SizedBox(height: Spacing.xs),
-                    Text(
-                      'Find nearby garages and book service',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Service Centers',
+                          style: AppTextStyles.headlineSmall.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: Spacing.xs),
+                        Text(
+                          'Find nearby garages and book service',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: Spacing.lg),
+                        _MapPreviewCard(
+                          onTap: () {
+                            Navigator.of(context).pushNamed('/services/map');
+                          },
+                        ),
+                        const SizedBox(height: Spacing.lg),
+                        _UpcomingAppointmentsSection(centers: state.centers),
+                        const SizedBox(height: Spacing.lg),
+                        _NearbyCentersSection(centers: state.centers),
+                      ],
                     ),
-                    const SizedBox(height: Spacing.lg),
-                    _MapPreviewCard(
-                      onTap: () {
-                        Navigator.of(context).pushNamed('/services/map');
-                      },
-                    ),
-                    const SizedBox(height: Spacing.lg),
-                    _UpcomingAppointmentsSection(centers: state.centers),
-                    const SizedBox(height: Spacing.lg),
-                    _NearbyCentersSection(centers: state.centers),
-                  ],
-                ),
-              );
-            },
-          ),
+                  );
+                },
+              ),
         ),
       ),
       bottomNavigationBar: const _ServiceBottomNavBar(),
     );
   }
-
 }
 
 class _ServiceErrorView extends StatelessWidget {
@@ -262,10 +265,12 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
           appointments = <Appointment>[];
         }
         final upcoming = appointments
-            .where((a) =>
-                a.status != AppointmentStatus.cancelled &&
-                a.status != AppointmentStatus.rejected &&
-                a.status != AppointmentStatus.completed)
+            .where(
+              (a) =>
+                  a.status != AppointmentStatus.cancelled &&
+                  a.status != AppointmentStatus.rejected &&
+                  a.status != AppointmentStatus.completed,
+            )
             .toList();
 
         final top3 = upcoming.take(3).toList();
@@ -299,7 +304,9 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
                   child: Text(
                     'View All',
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: hasMore ? AppColors.textSecondary : AppColors.textSecondary.withOpacity(0.7),
+                      color: hasMore
+                          ? AppColors.textSecondary
+                          : AppColors.textSecondary.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -349,14 +356,15 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
 }
 
 class AllUpcomingAppointmentsPage extends StatelessWidget {
-  const AllUpcomingAppointmentsPage({required this.centers});
+  const AllUpcomingAppointmentsPage({super.key, required this.centers});
 
   final List<ServiceCenter> centers;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<AppointmentsBloc>()..add(const AppointmentsLoadRequested()),
+      create: (_) =>
+          getIt<AppointmentsBloc>()..add(const AppointmentsLoadRequested()),
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
@@ -389,17 +397,12 @@ class AllUpcomingAppointmentsPage extends StatelessWidget {
                 appointments = <Appointment>[];
               }
 
-              // Include cancelled as well, but keep rejected/completed out.
-              final upcoming = appointments
-                  .where((a) =>
-                      a.status != AppointmentStatus.rejected &&
-                      a.status != AppointmentStatus.completed)
-                  .toList();
+              final allAppointments = appointments;
 
-              if (upcoming.isEmpty) {
+              if (allAppointments.isEmpty) {
                 return Center(
                   child: Text(
-                    'No upcoming appointments',
+                    'No appointments yet',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -412,12 +415,12 @@ class AllUpcomingAppointmentsPage extends StatelessWidget {
                   horizontal: Spacing.lg,
                   vertical: Spacing.lg,
                 ),
-                itemCount: upcoming.length,
+                itemCount: allAppointments.length,
                 itemBuilder: (context, index) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: Spacing.sm),
                     child: _AppointmentCardFromEntity(
-                      appointment: upcoming[index],
+                      appointment: allAppointments[index],
                       centers: centers,
                     ),
                   );
@@ -533,50 +536,170 @@ class _AppointmentCardFromEntity extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
               const SizedBox(width: Spacing.xs),
-              Text(dateStr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+              Text(
+                dateStr,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
               const SizedBox(width: Spacing.md),
               Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
               const SizedBox(width: Spacing.xs),
-              Text(timeStr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+              Text(
+                timeStr,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: Spacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _onReschedule(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    foregroundColor: AppColors.textOnPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-                  ),
-                  child: const Text('Reschedule'),
+          if (appointment.status == AppointmentStatus.completed)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _onRateGarage(context),
+                icon: const Icon(Icons.star_rounded),
+                label: const Text('Rate Garage'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.warning,
+                  foregroundColor: AppColors.textPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
                 ),
               ),
-              const SizedBox(width: Spacing.sm),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _onCancel(context),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary,
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _onReschedule(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: AppColors.textOnPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+                    ),
+                    child: const Text('Reschedule'),
                   ),
-                  child: const Text('Cancel'),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: Spacing.sm),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _onCancel(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.border),
+                      padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
   }
 
+  Future<void> _onRateGarage(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final reviewCtrl = TextEditingController();
+    int stars = 5;
+    final submit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return AlertDialog(
+              title: const Text('Rate Garage'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('How was your service experience?'),
+                  const SizedBox(height: Spacing.sm),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: List.generate(5, (i) {
+                      final on = i < stars;
+                      return IconButton(
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => setState(() => stars = i + 1),
+                        icon: Icon(
+                          on ? Icons.star_rounded : Icons.star_border_rounded,
+                          color: on
+                              ? AppColors.warning
+                              : AppColors.textSecondary,
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: Spacing.sm),
+                  TextField(
+                    controller: reviewCtrl,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      hintText: 'Write optional feedback',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text('Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (submit != true) return;
+    try {
+      await getIt<ApiClient>().dio.post(
+        ApiEndpoints.driverAppointmentReview(appointment.id),
+        data: {
+          'rating': stars,
+          if (reviewCtrl.text.trim().isNotEmpty)
+            'comment': reviewCtrl.text.trim(),
+        },
+      );
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Thanks! Your rating was submitted.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      if (!context.mounted) return;
+      try {
+        context.read<ServiceLocatorBloc>().add(
+          const RefreshNearbyGaragesRequested(),
+        );
+      } catch (_) {}
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : 'Unable to submit rating';
+      messenger.showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: AppColors.danger),
+      );
+    }
+  }
+
   Future<void> _onReschedule(BuildContext context) async {
     final date = await showDatePicker(
       context: context,
-      initialDate: appointment.scheduledAt.isAfter(DateTime.now()) ? appointment.scheduledAt : DateTime.now().add(const Duration(days: 1)),
+      initialDate: appointment.scheduledAt.isAfter(DateTime.now())
+          ? appointment.scheduledAt
+          : DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
@@ -586,10 +709,19 @@ class _AppointmentCardFromEntity extends StatelessWidget {
       initialTime: TimeOfDay.fromDateTime(appointment.scheduledAt),
     );
     if (time == null || !context.mounted) return;
-    final scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final scheduledAt = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
     context.read<AppointmentsBloc>().add(
-          AppointmentRescheduleRequested(id: appointment.id, scheduledAt: scheduledAt),
-        );
+      AppointmentRescheduleRequested(
+        id: appointment.id,
+        scheduledAt: scheduledAt,
+      ),
+    );
   }
 
   Future<void> _onCancel(BuildContext context) async {
@@ -611,7 +743,9 @@ class _AppointmentCardFromEntity extends StatelessWidget {
       ),
     );
     if (confirm == true && context.mounted) {
-      context.read<AppointmentsBloc>().add(AppointmentCancelRequested(appointment.id));
+      context.read<AppointmentsBloc>().add(
+        AppointmentCancelRequested(appointment.id),
+      );
     }
   }
 
@@ -779,7 +913,9 @@ class _NearbyCenterCard extends StatelessWidget {
                     Text(
                       center.isOpen ? 'Open' : 'Closed',
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: center.isOpen ? AppColors.success : AppColors.textSecondary,
+                        color: center.isOpen
+                            ? AppColors.success
+                            : AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -790,18 +926,28 @@ class _NearbyCenterCard extends StatelessWidget {
                         const SizedBox(width: Spacing.xs),
                         Text(
                           center.rating.toStringAsFixed(1),
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         Text(
                           ' (${center.reviewsCount})',
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         const SizedBox(width: Spacing.md),
-                        Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(width: Spacing.xs),
                         Text(
                           '${center.distanceMiles.toStringAsFixed(1)} mi',
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -860,10 +1006,7 @@ class _NearbyCenterCard extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).pushNamed(
                       '/services/map',
-                      arguments: {
-                        'centerId': center.id,
-                        'autoNavigate': true,
-                      },
+                      arguments: {'centerId': center.id, 'autoNavigate': true},
                     );
                   },
                   icon: const Icon(Icons.near_me_outlined, size: 18),

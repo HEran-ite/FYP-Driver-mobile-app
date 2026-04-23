@@ -16,6 +16,10 @@ abstract class AuthRepository {
   Future<DriverUser?> getCurrentUser();
   /// Persist updated profile (name, email) locally so drawer and app reflect changes.
   Future<void> updateProfile(DriverUser user);
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
 }
 
 class AuthResult {

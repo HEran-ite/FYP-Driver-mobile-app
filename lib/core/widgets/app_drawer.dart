@@ -86,7 +86,7 @@ class AppDrawer extends StatelessWidget {
                   activeIcon: Icons.settings,
                   label: 'Settings',
                   isActive: currentRoute == '/settings',
-                  onTap: () => _navigate(context, '/driver-dashboard'),
+                  onTap: () => _navigate(context, '/settings'),
                 ),
                 _DrawerTile(
                   icon: Icons.help_outline,

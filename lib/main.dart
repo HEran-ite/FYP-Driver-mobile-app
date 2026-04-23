@@ -23,6 +23,7 @@ import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/auth/presentation/pages/auth_gate_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/profile_page.dart';
+import 'features/auth/presentation/pages/settings_page.dart';
 import 'features/auth/presentation/pages/signup_page.dart';
 import 'features/community/presentation/bloc/community_bloc.dart';
 import 'features/community/presentation/pages/community_feed_page.dart';
@@ -83,7 +84,9 @@ class App extends StatelessWidget {
       providers: [
         BlocProvider<AuthBloc>(create: (_) => getIt<AuthBloc>()),
         BlocProvider<NotificationsBloc>(
-          create: (_) => getIt<NotificationsBloc>()..add(const NotificationsLoadRequested()),
+          create: (_) =>
+              getIt<NotificationsBloc>()
+                ..add(const NotificationsLoadRequested()),
         ),
       ],
       child: const _AuthSessionShell(),
@@ -154,41 +157,45 @@ class _AuthSessionShellState extends State<_AuthSessionShell>
           '/login': (context) => const LoginPage(),
           '/signup': (context) => const SignupPage(),
           '/profile': (context) => const ProfilePage(),
+          '/settings': (context) => const SettingsPage(),
           '/community': (context) => BlocProvider(
-                create: (_) => getIt<CommunityBloc>(),
-                child: const CommunityFeedPage(),
-              ),
+            create: (_) => getIt<CommunityBloc>(),
+            child: const CommunityFeedPage(),
+          ),
           '/education': (context) => BlocProvider(
-                create: (_) => getIt<EducationBloc>()..add(const EducationLoadRequested()),
-                child: const EducationCenterPage(),
-              ),
+            create: (_) =>
+                getIt<EducationBloc>()..add(const EducationLoadRequested()),
+            child: const EducationCenterPage(),
+          ),
           '/education/all': (context) => EducationArticlesListPage(
-                initialCategory: EducationArticlesListPage.categoryFromArgs(
-                  ModalRoute.of(context)?.settings.arguments,
-                ),
-              ),
+            initialCategory: EducationArticlesListPage.categoryFromArgs(
+              ModalRoute.of(context)?.settings.arguments,
+            ),
+          ),
           '/maintenance/upcoming': (context) => MultiBlocProvider(
-                providers: [
-                  BlocProvider<MaintenanceBloc>(
-                    create: (_) => getIt<MaintenanceBloc>(),
-                  ),
-                  BlocProvider<VehiclesBloc>(
-                    create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
-                  ),
-                ],
-                child: const MaintenanceUpcomingPage(),
+            providers: [
+              BlocProvider<MaintenanceBloc>(
+                create: (_) => getIt<MaintenanceBloc>(),
               ),
+              BlocProvider<VehiclesBloc>(
+                create: (_) =>
+                    getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
+              ),
+            ],
+            child: const MaintenanceUpcomingPage(),
+          ),
           '/maintenance/history': (context) => MultiBlocProvider(
-                providers: [
-                  BlocProvider<MaintenanceBloc>(
-                    create: (_) => getIt<MaintenanceBloc>(),
-                  ),
-                  BlocProvider<VehiclesBloc>(
-                    create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
-                  ),
-                ],
-                child: const MaintenanceHistoryPage(),
+            providers: [
+              BlocProvider<MaintenanceBloc>(
+                create: (_) => getIt<MaintenanceBloc>(),
               ),
+              BlocProvider<VehiclesBloc>(
+                create: (_) =>
+                    getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
+              ),
+            ],
+            child: const MaintenanceHistoryPage(),
+          ),
           '/notifications': (context) => const NotificationsPage(),
           '/driver-dashboard': (context) => const DriverDashboardPage(),
           '/services': (context) => const ServiceLocatorPage(),
@@ -220,7 +227,10 @@ class _AuthSessionShellState extends State<_AuthSessionShell>
                 focusUpcomingId = f.toString().trim();
               }
             }
-            return VehiclesListPage(initialTab: tab, focusUpcomingId: focusUpcomingId);
+            return VehiclesListPage(
+              initialTab: tab,
+              focusUpcomingId: focusUpcomingId,
+            );
           },
           '/vehicles/detail': (context) {
             final args = ModalRoute.of(context)?.settings.arguments;
@@ -282,9 +292,7 @@ class _RootLandingPageState extends State<_RootLandingPage> {
   @override
   Widget build(BuildContext context) {
     if (_checking) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_showOnboarding) {
       return const OnboardingPage();
@@ -292,4 +300,3 @@ class _RootLandingPageState extends State<_RootLandingPage> {
     return const AuthGatePage();
   }
 }
-

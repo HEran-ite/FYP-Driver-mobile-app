@@ -1,5 +1,6 @@
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/dimensions.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_drawer.dart';
@@ -29,6 +31,7 @@ class CommunityFeedPage extends StatefulWidget {
 
 class _CommunityFeedPageState extends State<CommunityFeedPage> {
   final _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
   int _tab = 0;
 
   @override
@@ -39,8 +42,18 @@ class _CommunityFeedPageState extends State<CommunityFeedPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {});
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 320), () {
+      if (!mounted) return;
+      context.read<CommunityBloc>().add(CommunitySearchRequested(value));
+    });
   }
 
   @override
@@ -52,141 +65,197 @@ class _CommunityFeedPageState extends State<CommunityFeedPage> {
       backgroundColor: AppColors.background,
       drawer: const AppDrawer(currentRoute: '/community'),
       appBar: const NavAppBar(title: 'CarCare', notificationCount: 3),
-      body: BlocBuilder<CommunityBloc, CommunityState>(
-        builder: (context, state) {
-          final posts = state is CommunityLoaded ? state.posts : const <Post>[];
-          final filtered = _applyFilters(posts, myId: myId, tab: _tab);
+      body: BlocListener<CommunityBloc, CommunityState>(
+        listenWhen: (previous, current) =>
+            current is CommunityFailure && previous is CommunityLoaded,
+        listener: (context, state) {
+          if (state is! CommunityFailure) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        },
+        child: BlocBuilder<CommunityBloc, CommunityState>(
+          builder: (context, state) {
+            final loaded = state is CommunityLoaded ? state : null;
+            final posts = loaded?.posts ?? const <Post>[];
+            final bookmarked = loaded?.bookmarkedPosts ?? const <Post>[];
+            final filtered = _applyFilters(
+              posts,
+              bookmarkedPosts: bookmarked,
+              myId: myId,
+              tab: _tab,
+            );
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Community',
-                      style: AppTextStyles.titleLarge.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    Spacing.lg,
+                    Spacing.sm,
+                    Spacing.lg,
+                    0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Community',
+                        style: AppTextStyles.titleLarge.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Connect with car owners',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: Spacing.md),
-                    _SearchField(
-                      controller: _searchCtrl,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: Spacing.sm),
-                    _CommunityTabs(
-                      value: _tab,
-                      onChanged: (i) => setState(() => _tab = i),
-                    ),
-                    const SizedBox(height: Spacing.sm),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          final bloc = context.read<CommunityBloc>();
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => BlocProvider.value(
-                                value: bloc,
-                                child: const CreatePostPage(),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Connect with car owners',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: Spacing.md),
+                      _SearchField(
+                        controller: _searchCtrl,
+                        onChanged: _onSearchChanged,
+                      ),
+                      const SizedBox(height: Spacing.sm),
+                      _CommunityTabs(
+                        value: _tab,
+                        onChanged: (i) => setState(() => _tab = i),
+                      ),
+                      const SizedBox(height: Spacing.sm),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final bloc = context.read<CommunityBloc>();
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => BlocProvider.value(
+                                  value: bloc,
+                                  child: const CreatePostPage(),
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Create Post'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.textPrimary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: Spacing.sm,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                BorderRadiusValues.lg,
                               ),
                             ),
-                          );
-                        },
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Create Post'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.textPrimary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: Spacing.sm),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () async {
-                    context.read<CommunityBloc>().add(const CommunityRefreshRequested());
-                  },
-                  child: Builder(
-                    builder: (_) {
-                      if (state is CommunityLoading || state is CommunityInitial) {
-                        return ListView(
-                          children: [
-                            SizedBox(height: 160),
-                            Center(child: CircularProgressIndicator()),
-                          ],
-                        );
-                      }
-                      if (state is CommunityFailure) {
-                        return ListView(
-                          padding: const EdgeInsets.all(Spacing.lg),
-                          children: [
-                            const SizedBox(height: 120),
-                            Text(
-                              state.message,
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.danger),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        );
-                      }
-                      if (filtered.isEmpty) {
-                        return ListView(
-                          padding: const EdgeInsets.all(Spacing.lg),
-                          children: [
-                            const SizedBox(height: 120),
-                            Text(
-                              'No posts found.',
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        );
-                      }
-
-                      return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(
-                          Spacing.lg,
-                          0,
-                          Spacing.lg,
-                          Spacing.lg,
-                        ),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: Spacing.md),
-                        itemBuilder: (context, i) {
-                          final p = filtered[i];
-                          return _PostCard(
-                            post: p,
-                            canDelete: myId.isNotEmpty && p.authorId == myId,
-                            onDelete: () {
-                              context.read<CommunityBloc>().add(CommunityDeletePostRequested(p.id));
-                            },
-                          );
-                        },
-                      );
-                    },
+                    ],
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+                const SizedBox(height: Spacing.sm),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      context.read<CommunityBloc>().add(
+                        const CommunityRefreshRequested(),
+                      );
+                    },
+                    child: Builder(
+                      builder: (_) {
+                        if (state is CommunityLoading ||
+                            state is CommunityInitial) {
+                          return ListView(
+                            children: const [
+                              SizedBox(height: 160),
+                              Center(child: CircularProgressIndicator()),
+                            ],
+                          );
+                        }
+                        if (state is CommunityFailure && loaded == null) {
+                          return ListView(
+                            padding: const EdgeInsets.all(Spacing.lg),
+                            children: [
+                              const SizedBox(height: 120),
+                              Text(
+                                state.message,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.danger,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          );
+                        }
+                        if (filtered.isEmpty) {
+                          return ListView(
+                            padding: const EdgeInsets.all(Spacing.lg),
+                            children: [
+                              const SizedBox(height: 120),
+                              Text(
+                                'No posts found.',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          );
+                        }
+
+                        return ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(
+                            Spacing.lg,
+                            0,
+                            Spacing.lg,
+                            Spacing.lg,
+                          ),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: Spacing.md),
+                          itemBuilder: (context, i) {
+                            final p = filtered[i];
+                            final isMine =
+                                myId.isNotEmpty && p.author.id == myId;
+                            return _PostCard(
+                              post: p,
+                              isMine: isMine,
+                              onDelete: () {
+                                context.read<CommunityBloc>().add(
+                                  CommunityDeletePostRequested(p.id),
+                                );
+                              },
+                              onEdit: () => _openEditPage(p),
+                              onLike: () {
+                                context.read<CommunityBloc>().add(
+                                  CommunityToggleLikeRequested(p.id),
+                                );
+                              },
+                              onBookmark: () {
+                                context.read<CommunityBloc>().add(
+                                  CommunityToggleBookmarkRequested(p.id),
+                                );
+                              },
+                              onComment: () => _showCommentsSheet(p),
+                              onReport: () => _showReportDialog(p),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
       bottomNavigationBar: const _CommunityBottomNavBar(),
     );
@@ -194,15 +263,19 @@ class _CommunityFeedPageState extends State<CommunityFeedPage> {
 
   List<Post> _applyFilters(
     List<Post> posts, {
+    required List<Post> bookmarkedPosts,
     required String myId,
     required int tab,
   }) {
-    final base = _applySearch(posts);
+    final source = switch (tab) {
+      2 => bookmarkedPosts,
+      _ => posts,
+    };
+    final base = _applySearch(source);
     if (tab == 1) {
       if (myId.isEmpty) return const <Post>[];
-      return base.where((p) => p.authorId == myId).toList();
+      return base.where((p) => p.author.id == myId).toList();
     }
-    // Favorites / Mentions are UI-only until backend supports them.
     return base;
   }
 
@@ -210,32 +283,304 @@ class _CommunityFeedPageState extends State<CommunityFeedPage> {
     final q = _searchCtrl.text.trim().toLowerCase();
     if (q.isEmpty) return posts;
     return posts
-        .where((p) =>
-            p.title.toLowerCase().contains(q) || p.content.toLowerCase().contains(q))
+        .where(
+          (p) {
+            final ownerFullName = '${p.author.firstName} ${p.author.lastName}'
+                .trim()
+                .toLowerCase();
+            return p.title.toLowerCase().contains(q) ||
+                p.content.toLowerCase().contains(q) ||
+                p.author.displayName.toLowerCase().contains(q) ||
+                p.author.firstName.toLowerCase().contains(q) ||
+                p.author.lastName.toLowerCase().contains(q) ||
+                ownerFullName.contains(q);
+          },
+        )
         .toList();
+  }
+
+  void _openEditPage(Post post) {
+    final bloc = context.read<CommunityBloc>();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider.value(
+          value: bloc,
+          child: CreatePostPage(initialPost: post),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showReportDialog(Post post) async {
+    final detailsCtrl = TextEditingController();
+    String reason = 'SPAM';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return AlertDialog(
+              title: const Text('Report Post'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: reason,
+                    items: const [
+                      DropdownMenuItem(value: 'SPAM', child: Text('Spam')),
+                      DropdownMenuItem(
+                        value: 'ABUSE',
+                        child: Text('Abusive content'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'MISLEADING',
+                        child: Text('Misleading information'),
+                      ),
+                      DropdownMenuItem(value: 'OTHER', child: Text('Other')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => reason = v);
+                    },
+                  ),
+                  if (reason == 'OTHER') ...[
+                    const SizedBox(height: Spacing.sm),
+                    TextField(
+                      controller: detailsCtrl,
+                      minLines: 3,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        hintText: 'Tell us what is wrong',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text('Report'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (ok != true) return;
+    if (!mounted) return;
+    context.read<CommunityBloc>().add(
+      CommunityReportPostRequested(
+        postId: post.id,
+        reason: reason,
+        details: detailsCtrl.text.trim().isEmpty
+            ? null
+            : detailsCtrl.text.trim(),
+      ),
+    );
+  }
+
+  Future<void> _showCommentsSheet(Post post) async {
+    final bloc = context.read<CommunityBloc>();
+    bloc.add(CommunityCommentsLoadRequested(post.id));
+    final inputCtrl = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return BlocProvider.value(
+          value: bloc,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+              left: Spacing.lg,
+              right: Spacing.lg,
+              top: Spacing.sm,
+            ),
+            child: SizedBox(
+              height: MediaQuery.of(sheetContext).size.height * 0.72,
+              child: Column(
+                children: [
+                  Text(
+                    'Comments',
+                    style: AppTextStyles.titleMedium.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.sm),
+                  Expanded(
+                    child: BlocBuilder<CommunityBloc, CommunityState>(
+                      builder: (context, state) {
+                        if (state is! CommunityLoaded) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final loading = state.commentsLoadingPostIds.contains(
+                          post.id,
+                        );
+                        final comments =
+                            state.commentsByPostId[post.id] ??
+                            const <PostComment>[];
+                        if (loading && comments.isEmpty) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        if (comments.isEmpty) {
+                          return Center(
+                            child: Text(
+                              'No comments yet.',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          );
+                        }
+                        return ListView.separated(
+                          itemCount: comments.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (_, i) {
+                            final c = comments[i];
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 2,
+                              ),
+                              leading: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: AppColors.textPrimary,
+                                child: Text(
+                                  c.author.initials,
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                c.author.displayName,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(c.content),
+                              ),
+                              trailing: c.isMine
+                                  ? IconButton(
+                                      tooltip: 'Delete',
+                                      onPressed: () {
+                                        context.read<CommunityBloc>().add(
+                                          CommunityDeleteCommentRequested(
+                                            postId: post.id,
+                                            commentId: c.id,
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: AppColors.danger,
+                                      ),
+                                    )
+                                  : null,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.sm),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: inputCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'Write a comment',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: Spacing.sm),
+                      IconButton.filled(
+                        onPressed: () {
+                          final text = inputCtrl.text.trim();
+                          if (text.isEmpty) return;
+                          bloc.add(
+                            CommunityCreateCommentRequested(
+                              postId: post.id,
+                              content: text,
+                            ),
+                          );
+                          inputCtrl.clear();
+                        },
+                        icon: const Icon(Icons.send_rounded),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Spacing.md),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
-class _PostCard extends StatelessWidget {
+class _PostCard extends StatefulWidget {
   const _PostCard({
     required this.post,
-    required this.canDelete,
+    required this.isMine,
+    required this.onEdit,
     required this.onDelete,
+    required this.onLike,
+    required this.onBookmark,
+    required this.onComment,
+    required this.onReport,
   });
 
   final Post post;
-  final bool canDelete;
+  final bool isMine;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onLike;
+  final VoidCallback onBookmark;
+  final VoidCallback onComment;
+  final VoidCallback onReport;
+
+  @override
+  State<_PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<_PostCard> {
+  bool _expanded = false;
+  int _imagePageIndex = 0;
+
+  @override
+  void didUpdateWidget(covariant _PostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.id != widget.post.id) {
+      _imagePageIndex = 0;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final post = widget.post;
     final time = post.createdAt;
     final timeStr = time != null ? _timeAgo(time) : null;
-    final imageUrl = post.imageUrl?.trim();
-    final initials = _initialsFromAuthorId(post.authorId);
-    final displayName = _displayNameFromAuthorId(post.authorId);
-    final likeCount = _pseudoCount(post.id, 97) + 1;
-    final commentCount = _pseudoCount('${post.id}-c', 23) + 1;
+    final imageUrls = post.imageUrls;
+    final initials = post.author.initials;
+    final displayName = post.author.displayName;
     return Container(
       padding: const EdgeInsets.all(Spacing.lg),
       decoration: BoxDecoration(
@@ -283,63 +628,126 @@ class _PostCard extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
                           timeStr,
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
-                itemBuilder: (ctx) => [
-                  if (canDelete)
-                    const PopupMenuItem<String>(
-                      value: 'delete',
-                      child: Text('Delete'),
+                icon: const Icon(
+                  Icons.more_vert,
+                  color: AppColors.textSecondary,
+                ),
+                itemBuilder: (ctx) {
+                  if (widget.isMine) {
+                    return const [
+                      PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Text('Delete'),
+                      ),
+                    ];
+                  }
+                  return const [
+                    PopupMenuItem<String>(
+                      value: 'report',
+                      child: Text('Report'),
                     ),
-                ],
+                  ];
+                },
                 onSelected: (v) {
-                  if (v == 'delete') onDelete();
+                  if (v == 'edit') widget.onEdit();
+                  if (v == 'delete') widget.onDelete();
+                  if (v == 'report') widget.onReport();
                 },
               ),
             ],
           ),
           const SizedBox(height: Spacing.md),
-          Text(
-            post.content,
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.textPrimary,
-              height: 1.45,
-            ),
+          _ExpandablePostText(
+            text: post.content,
+            expanded: _expanded,
+            onToggle: () => setState(() => _expanded = !_expanded),
           ),
           const SizedBox(height: Spacing.md),
-          if (imageUrl != null && imageUrl.isNotEmpty)
+          if (imageUrls.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(18),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: _PostImage(url: imageUrl),
-              ),
+              child: imageUrls.length == 1
+                  ? AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: _PostImage(url: imageUrls.first),
+                    )
+                  : SizedBox(
+                      height: 190,
+                      child: PageView.builder(
+                        itemCount: imageUrls.length,
+                        onPageChanged: (idx) => setState(() => _imagePageIndex = idx),
+                        itemBuilder: (_, i) => _PostImage(url: imageUrls[i]),
+                      ),
+                    ),
             ),
+          if (imageUrls.length > 1) ...[
+            const SizedBox(height: Spacing.sm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(imageUrls.length, (i) {
+                final active = i == _imagePageIndex;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: active ? 16 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: active ? AppColors.textPrimary : AppColors.border,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                );
+              }),
+            ),
+          ],
           const SizedBox(height: Spacing.md),
           Row(
             children: [
-              _Action(
-                icon: Icons.favorite_border_rounded,
-                count: likeCount,
-                onTap: () {},
+              Expanded(
+                child: Center(
+                  child: _Action(
+                    icon: post.isLikedByMe
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: post.isLikedByMe
+                        ? Colors.redAccent
+                        : AppColors.textSecondary,
+                    count: post.stats.likeCount,
+                    onTap: widget.onLike,
+                  ),
+                ),
               ),
-              const SizedBox(width: 22),
-              _Action(
-                icon: Icons.mode_comment_outlined,
-                count: commentCount,
-                onTap: () {},
+              Expanded(
+                child: Center(
+                  child: _Action(
+                    icon: Icons.mode_comment_outlined,
+                    count: post.stats.commentCount,
+                    onTap: widget.onComment,
+                  ),
+                ),
               ),
-              const Spacer(),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.bookmark_border_rounded),
-                color: AppColors.textSecondary,
+              Expanded(
+                child: Center(
+                  child: _Action(
+                    icon: post.isBookmarkedByMe
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    count: post.stats.bookmarkCount,
+                    color: post.isBookmarkedByMe
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                    onTap: widget.onBookmark,
+                  ),
+                ),
               ),
             ],
           ),
@@ -358,36 +766,64 @@ class _PostCard extends StatelessWidget {
     final weeks = (diff.inDays / 7).floor();
     return '$weeks weeks ago';
   }
+}
 
-  static String _initialsFromAuthorId(String id) {
-    final s = id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
-    if (s.isEmpty) return 'U';
-    return s.substring(0, s.length >= 2 ? 2 : 1);
-  }
+class _ExpandablePostText extends StatelessWidget {
+  const _ExpandablePostText({
+    required this.text,
+    required this.expanded,
+    required this.onToggle,
+  });
 
-  static String _displayNameFromAuthorId(String id) {
-    // Backend currently returns only authorId. Keep it friendly but stable.
-    if (id.trim().isEmpty) return 'Driver';
-    final s = id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-    final tail = s.length <= 4 ? s : s.substring(s.length - 4);
-    return 'Driver $tail';
-  }
+  final String text;
+  final bool expanded;
+  final VoidCallback onToggle;
 
-  static int _pseudoCount(String seed, int mod) {
-    // Deterministic per post so UI looks like the mock without backend fields.
-    var h = 0;
-    for (final c in seed.codeUnits) {
-      h = (h * 31 + c) & 0x7fffffff;
-    }
-    return h % mod;
+  @override
+  Widget build(BuildContext context) {
+    final canExpand = text.trim().length > 180;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          text,
+          maxLines: expanded ? null : (canExpand ? 4 : null),
+          overflow: expanded ? TextOverflow.visible : TextOverflow.fade,
+          style: AppTextStyles.bodyLarge.copyWith(
+            color: AppColors.textPrimary,
+            height: 1.45,
+          ),
+        ),
+        if (canExpand)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: InkWell(
+              onTap: onToggle,
+              child: Text(
+                expanded ? 'Show less' : 'Show more',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 
 class _Action extends StatelessWidget {
-  const _Action({required this.icon, required this.onTap, this.count});
+  const _Action({
+    required this.icon,
+    required this.onTap,
+    this.count,
+    this.color,
+  });
   final IconData icon;
   final VoidCallback onTap;
   final int? count;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -397,12 +833,14 @@ class _Action extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: AppColors.textSecondary),
+          Icon(icon, size: 18, color: color ?? AppColors.textSecondary),
           if (count != null) ...[
             const SizedBox(width: 6),
             Text(
               '$count',
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ],
@@ -425,7 +863,9 @@ class _PostImage extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             'Invalid image',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         );
       }
@@ -440,7 +880,9 @@ class _PostImage extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               'Cannot load image',
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
         );
@@ -450,34 +892,50 @@ class _PostImage extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             'Cannot load image',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         );
       }
     }
-    final uri = Uri.tryParse(url);
+    final resolved = _resolveImageUrl(url);
+    final uri = Uri.tryParse(resolved);
     if (uri == null) {
       return Container(
         color: AppColors.surfaceMuted,
         alignment: Alignment.center,
         child: Text(
           'Invalid image URL',
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
       );
     }
     return Image.network(
-      uri.toString(),
+      resolved,
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => Container(
         color: AppColors.surfaceMuted,
         alignment: Alignment.center,
         child: Text(
           'Cannot load image',
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
       ),
     );
+  }
+
+  String _resolveImageUrl(String raw) {
+    final value = raw.trim();
+    final uri = Uri.tryParse(value);
+    if (uri != null && uri.hasScheme) return value;
+    final base = ApiEndpoints.baseUrl;
+    if (value.startsWith('/')) return '$base$value';
+    return '$base/$value';
   }
 }
 
@@ -506,8 +964,13 @@ class _SearchField extends StatelessWidget {
         onChanged: onChanged,
         decoration: InputDecoration(
           hintText: 'Search posts...',
-          hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
+          hintStyle: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppColors.textSecondary,
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
         ),
@@ -521,7 +984,7 @@ class _CommunityTabs extends StatelessWidget {
   final int value;
   final ValueChanged<int> onChanged;
 
-  static const _labels = ['All', 'My posts', 'Favorites', 'Bookmarks'];
+  static const _labels = ['All', 'My posts', 'Bookmarks'];
 
   @override
   Widget build(BuildContext context) {
@@ -564,7 +1027,10 @@ class _CommunityBottomNavBar extends StatelessWidget {
       child: SizedBox(
         height: Dimensions.bottomNavHeight,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.xs),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Spacing.lg,
+            vertical: Spacing.xs,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -633,4 +1099,3 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
-

@@ -45,3 +45,6 @@ class UpdateVisibleCenters extends ServiceLocatorEvent {
   List<Object?> get props => [visibleCenterIds];
 }
 
+class RefreshNearbyGaragesRequested extends ServiceLocatorEvent {
+  const RefreshNearbyGaragesRequested();
+}
