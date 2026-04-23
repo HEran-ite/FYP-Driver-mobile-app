@@ -6,24 +6,34 @@ import '../../../../core/constants/api_endpoints.dart';
 import '../models/driver_notification_model.dart';
 import 'notifications_remote_datasource.dart';
 
-class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource {
+class NotificationsRemoteDataSourceImpl
+    implements NotificationsRemoteDataSource {
   NotificationsRemoteDataSourceImpl(this._dio);
   final Dio _dio;
 
   @override
   Future<List<DriverNotificationModel>> listNotifications() async {
-    final res = await _dio.get<dynamic>(ApiEndpoints.driverMaintenanceNotifications);
+    final res = await _dio.get<dynamic>(ApiEndpoints.driverNotifications);
     final data = res.data;
     final list = _asList(data);
     return list
-        .map((e) => DriverNotificationModel.fromJson(e is Map<String, dynamic> ? e : null))
+        .map(
+          (e) => DriverNotificationModel.fromJson(
+            e is Map<String, dynamic> ? e : null,
+          ),
+        )
         .where((m) => m.id.isNotEmpty)
         .toList();
   }
 
   @override
   Future<void> markRead(String id) async {
-    await _dio.patch(ApiEndpoints.driverMaintenanceNotificationRead(id));
+    await _dio.patch(ApiEndpoints.driverNotificationRead(id));
+  }
+
+  @override
+  Future<void> markAllRead() async {
+    await _dio.patch(ApiEndpoints.driverNotificationsReadAll);
   }
 
   static List<dynamic> _asList(dynamic raw) {
@@ -33,4 +43,3 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
     return const [];
   }
 }
-

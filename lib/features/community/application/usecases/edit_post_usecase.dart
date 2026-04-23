@@ -2,19 +2,19 @@ library;
 
 import '../../domain/repositories/community_repository.dart';
 
-class CreatePostUseCase {
-  CreatePostUseCase(this._repo);
+class EditPostUseCase {
+  EditPostUseCase(this._repo);
   final CommunityRepository _repo;
 
   Future<void> call({
-    required String title,
-    required String content,
+    required String id,
+    String? title,
+    String? content,
     String? imageUrl,
-    String? imageFilePath,
-  }) => _repo.createPost(
+  }) => _repo.editPost(
+    id: id,
     title: title,
     content: content,
     imageUrl: imageUrl,
-    imageFilePath: imageFilePath,
   );
 }

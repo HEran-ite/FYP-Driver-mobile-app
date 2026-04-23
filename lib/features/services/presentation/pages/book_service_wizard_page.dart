@@ -353,19 +353,76 @@ class _BookServiceWizardPageState extends State<BookServiceWizardPage> {
           child: Column(
             children: [
               Expanded(
-                child: ListView.separated(
-                  itemCount: vehicles.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: Spacing.sm),
-                  itemBuilder: (context, index) {
-                    final v = vehicles[index];
-                    final selected = v.id == _selectedVehicleId;
-                    return _VehicleSelectCard(
-                      vehicle: v,
-                      selected: selected,
-                      onTap: () => setState(() => _selectedVehicleId = v.id),
-                    );
-                  },
-                ),
+                child: vehicles.isEmpty
+                    ? Center(
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(Spacing.lg),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(BorderRadiusValues.xl),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.directions_car_outlined,
+                                size: 34,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(height: Spacing.sm),
+                              Text(
+                                'Please add a vehicle first before booking.',
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: Spacing.sm),
+                              Text(
+                                'Bookings require a vehicle linked to your account.',
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: Spacing.md),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    await Navigator.of(context).pushNamed('/vehicles/add');
+                                    if (!mounted) return;
+                                    _vehiclesBloc.add(const VehiclesLoadRequested());
+                                  },
+                                  icon: const Icon(Icons.add_rounded),
+                                  label: const Text('Add Vehicle'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.secondary,
+                                    side: const BorderSide(color: AppColors.border),
+                                    padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: vehicles.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: Spacing.sm),
+                        itemBuilder: (context, index) {
+                          final v = vehicles[index];
+                          final selected = v.id == _selectedVehicleId;
+                          return _VehicleSelectCard(
+                            vehicle: v,
+                            selected: selected,
+                            onTap: () => setState(() => _selectedVehicleId = v.id),
+                          );
+                        },
+                      ),
               ),
               const SizedBox(height: Spacing.md),
               SizedBox(

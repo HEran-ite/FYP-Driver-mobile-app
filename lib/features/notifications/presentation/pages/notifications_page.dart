@@ -7,6 +7,7 @@ import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/nav_app_bar.dart';
+import '../../../services/presentation/pages/service_locator_page.dart';
 import '../../domain/entities/driver_notification.dart';
 import '../bloc/notifications_bloc.dart';
 import '../bloc/notifications_event.dart';
@@ -28,7 +29,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   void _onTapNotification(BuildContext context, DriverNotification n) {
     if (!n.read) {
-      context.read<NotificationsBloc>().add(NotificationMarkReadRequested(n.id));
+      context.read<NotificationsBloc>().add(
+        NotificationMarkReadRequested(n.id),
+      );
     }
     final uid = n.upcomingId?.trim();
     if (uid != null && uid.isNotEmpty) {
@@ -39,9 +42,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
       return;
     }
     if (_isMaintenanceRelated(n)) {
-      Navigator.of(context).pushNamed(
-        '/vehicles',
-        arguments: <String, dynamic>{'tab': 1},
+      Navigator.of(
+        context,
+      ).pushNamed('/vehicles', arguments: <String, dynamic>{'tab': 1});
+      return;
+    }
+    if (_isAppointmentRelated(n)) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const AllUpcomingAppointmentsPage(centers: []),
+        ),
       );
     }
   }
@@ -57,12 +67,20 @@ class _NotificationsPageState extends State<NotificationsPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, Spacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                Spacing.lg,
+                Spacing.md,
+                Spacing.lg,
+                Spacing.md,
+              ),
               child: Row(
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(width: Spacing.xs),
                   Expanded(
@@ -78,10 +96,27 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         ),
                         Text(
                           'Maintenance reminders and app updates',
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
+                  ),
+                  BlocBuilder<NotificationsBloc, NotificationsState>(
+                    builder: (context, state) {
+                      final canMarkAll = state.unreadCount > 0;
+                      return TextButton(
+                        onPressed: canMarkAll
+                            ? () {
+                                context.read<NotificationsBloc>().add(
+                                  const NotificationsMarkAllReadRequested(),
+                                );
+                              }
+                            : null,
+                        child: const Text('Mark all as read'),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -98,8 +133,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       child: Padding(
                         padding: const EdgeInsets.all(Spacing.lg),
                         child: Text(
-                          state.error?.trim().isNotEmpty == true ? state.error! : 'No notifications yet.',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                          state.error?.trim().isNotEmpty == true
+                              ? state.error!
+                              : 'No notifications yet.',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -107,21 +146,27 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   }
                   return RefreshIndicator(
                     onRefresh: () async {
-                      context.read<NotificationsBloc>().add(const NotificationsLoadRequested());
+                      context.read<NotificationsBloc>().add(
+                        const NotificationsLoadRequested(),
+                      );
                     },
                     child: ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, Spacing.lg),
+                      padding: const EdgeInsets.fromLTRB(
+                        Spacing.lg,
+                        0,
+                        Spacing.lg,
+                        Spacing.lg,
+                      ),
                       itemCount: items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: Spacing.sm),
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: Spacing.sm),
                       itemBuilder: (context, i) {
                         final n = items[i];
                         final isUnread = !n.read;
                         final accent = _accentFor(n);
                         final title = _displayTitle(n);
                         final detail = _detailText(n);
-                        final canOpenReminder = n.upcomingId != null && n.upcomingId!.trim().isNotEmpty;
-                        final canOpenMaintenance = canOpenReminder || _isMaintenanceRelated(n);
 
                         return Material(
                           color: Colors.transparent,
@@ -129,13 +174,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             onTap: () => _onTapNotification(context, n),
                             borderRadius: BorderRadius.circular(18),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.md),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: Spacing.md,
+                                vertical: Spacing.md,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(18),
                                 border: Border.all(
-                                  color: isUnread ? const Color(0xFF1C2230) : const Color(0xFFE5E7EF),
-                                  width: isUnread ? 1.6 : 1,
+                                  color: const Color(0xFFE5E7EF),
+                                  width: 1,
                                 ),
                               ),
                               child: Row(
@@ -148,22 +196,28 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                       color: accent.withValues(alpha: 0.14),
                                       borderRadius: BorderRadius.circular(14),
                                     ),
-                                    child: Icon(_iconFor(n), color: accent, size: 22),
+                                    child: Icon(
+                                      _iconFor(n),
+                                      color: accent,
+                                      size: 22,
+                                    ),
                                   ),
                                   const SizedBox(width: Spacing.md),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           title,
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
-                                          style: AppTextStyles.bodyMedium.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.textPrimary,
-                                            height: 1.25,
-                                          ),
+                                          style: AppTextStyles.bodyMedium
+                                              .copyWith(
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
+                                                height: 1.25,
+                                              ),
                                         ),
                                         if (detail.isNotEmpty) ...[
                                           const SizedBox(height: 6),
@@ -171,60 +225,72 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                             detail,
                                             maxLines: 4,
                                             overflow: TextOverflow.ellipsis,
-                                            style: AppTextStyles.bodySmall.copyWith(
-                                              color: AppColors.textSecondary,
-                                              height: 1.35,
-                                            ),
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                  height: 1.35,
+                                                ),
                                           ),
                                         ],
                                         const SizedBox(height: 6),
                                         Wrap(
                                           spacing: Spacing.sm,
                                           runSpacing: 4,
-                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
                                           children: [
                                             Text(
                                               _timeAgo(n.createdAt),
-                                              style: AppTextStyles.labelSmall.copyWith(
-                                                color: AppColors.textSecondary,
-                                              ),
+                                              style: AppTextStyles.labelSmall
+                                                  .copyWith(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
                                             ),
-                                            if (n.upcomingId != null && n.upcomingId!.trim().isNotEmpty)
+                                            if (n.upcomingId != null &&
+                                                n.upcomingId!.trim().isNotEmpty)
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
                                                 decoration: BoxDecoration(
-                                                  color: AppColors.secondary.withValues(alpha: 0.12),
-                                                  borderRadius: BorderRadius.circular(8),
+                                                  color: AppColors.secondary
+                                                      .withValues(alpha: 0.12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
                                                 ),
                                                 child: Text(
                                                   'Reminder',
-                                                  style: AppTextStyles.labelSmall.copyWith(
-                                                    color: AppColors.secondary,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
+                                                  style: AppTextStyles
+                                                      .labelSmall
+                                                      .copyWith(
+                                                        color:
+                                                            AppColors.secondary,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
                                                 ),
                                               ),
                                           ],
                                         ),
-                                        if (canOpenMaintenance) ...[
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            canOpenReminder
-                                                ? 'Tap to open this reminder in Upcoming'
-                                                : 'Tap to open Upcoming maintenance',
-                                            style: AppTextStyles.labelSmall.copyWith(
-                                              color: AppColors.secondary,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
+                                        // Intentionally no extra helper/action text inside tile.
                                       ],
                                     ),
                                   ),
                                   if (isUnread)
                                     Padding(
-                                      padding: const EdgeInsets.only(left: Spacing.sm, top: 4),
-                                      child: Icon(Icons.circle, size: 8, color: accent),
+                                      padding: const EdgeInsets.only(
+                                        left: Spacing.sm,
+                                        top: 4,
+                                      ),
+                                      child: Icon(
+                                        Icons.circle,
+                                        size: 8,
+                                        color: accent,
+                                      ),
                                     ),
                                 ],
                               ),
@@ -298,14 +364,30 @@ bool _isMaintenanceRelated(DriverNotification n) {
       s.contains('inspection');
 }
 
+bool _isAppointmentRelated(DriverNotification n) {
+  final s = '${n.title} ${n.body}'.toLowerCase();
+  return s.contains('appointment') ||
+      s.contains('booking') ||
+      s.contains('scheduled') ||
+      s.contains('reschedule') ||
+      s.contains('cancelled') ||
+      s.contains('garage');
+}
+
 IconData _iconFor(DriverNotification n) {
   if (n.upcomingId != null && n.upcomingId!.trim().isNotEmpty) {
     return Icons.event_available_outlined;
   }
   final t = '${n.title} ${n.body}'.toLowerCase();
-  if (t.contains('pressure') || t.contains('tire')) return Icons.warning_amber_rounded;
-  if (t.contains('confirmed') || t.contains('appointment')) return Icons.calendar_today_outlined;
-  if (t.contains('completed') || t.contains('done')) return Icons.check_circle_outline_rounded;
+  if (t.contains('pressure') || t.contains('tire')) {
+    return Icons.warning_amber_rounded;
+  }
+  if (t.contains('confirmed') || t.contains('appointment')) {
+    return Icons.calendar_today_outlined;
+  }
+  if (t.contains('completed') || t.contains('done')) {
+    return Icons.check_circle_outline_rounded;
+  }
   if (_isMaintenanceRelated(n)) return Icons.build_circle_outlined;
   return Icons.notifications_none_rounded;
 }
@@ -315,9 +397,15 @@ Color _accentFor(DriverNotification n) {
     return const Color(0xFF4B8BFF);
   }
   final t = '${n.title} ${n.body}'.toLowerCase();
-  if (t.contains('pressure') || t.contains('tire')) return const Color(0xFFE45454);
-  if (t.contains('confirmed') || t.contains('appointment')) return const Color(0xFF4B8BFF);
-  if (t.contains('completed') || t.contains('done')) return const Color(0xFF32B768);
+  if (t.contains('pressure') || t.contains('tire')) {
+    return const Color(0xFFE45454);
+  }
+  if (t.contains('confirmed') || t.contains('appointment')) {
+    return const Color(0xFF4B8BFF);
+  }
+  if (t.contains('completed') || t.contains('done')) {
+    return const Color(0xFF32B768);
+  }
   if (_isMaintenanceRelated(n)) return AppColors.pending;
   return AppColors.secondary;
 }

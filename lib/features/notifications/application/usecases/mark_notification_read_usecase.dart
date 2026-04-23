@@ -8,4 +8,3 @@ class MarkNotificationReadUseCase {
 
   Future<void> call(String id) => _repo.markRead(id);
 }
-

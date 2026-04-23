@@ -4,10 +4,7 @@ import 'package:equatable/equatable.dart';
 
 /// A service offered by a garage ([id] from [GarageService] on the backend).
 class GarageOfferedService extends Equatable {
-  const GarageOfferedService({
-    required this.id,
-    required this.name,
-  });
+  const GarageOfferedService({required this.id, required this.name});
 
   final String id;
   final String name;
@@ -51,23 +48,57 @@ class ServiceCenter extends Equatable {
     this.availabilitySlots = const [],
   });
 
+  ServiceCenter copyWith({
+    String? id,
+    String? name,
+    String? subtitle,
+    String? phone,
+    double? latitude,
+    double? longitude,
+    double? rating,
+    int? reviewsCount,
+    double? distanceMiles,
+    bool? isOpen,
+    bool? isRegistered,
+    bool? onsiteServiceEnabled,
+    List<GarageOfferedService>? services,
+    List<GarageAvailabilitySlot>? availabilitySlots,
+  }) {
+    return ServiceCenter(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      subtitle: subtitle ?? this.subtitle,
+      phone: phone ?? this.phone,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      rating: rating ?? this.rating,
+      reviewsCount: reviewsCount ?? this.reviewsCount,
+      distanceMiles: distanceMiles ?? this.distanceMiles,
+      isOpen: isOpen ?? this.isOpen,
+      isRegistered: isRegistered ?? this.isRegistered,
+      onsiteServiceEnabled: onsiteServiceEnabled ?? this.onsiteServiceEnabled,
+      services: services ?? this.services,
+      availabilitySlots: availabilitySlots ?? this.availabilitySlots,
+    );
+  }
+
   @override
   List<Object?> get props => [
-        id,
-        name,
-        subtitle,
-        phone,
-        latitude,
-        longitude,
-        rating,
-        reviewsCount,
-        distanceMiles,
-        isOpen,
-        isRegistered,
-        onsiteServiceEnabled,
-        services,
-        availabilitySlots,
-      ];
+    id,
+    name,
+    subtitle,
+    phone,
+    latitude,
+    longitude,
+    rating,
+    reviewsCount,
+    distanceMiles,
+    isOpen,
+    isRegistered,
+    onsiteServiceEnabled,
+    services,
+    availabilitySlots,
+  ];
 }
 
 class GarageAvailabilitySlot extends Equatable {
@@ -84,4 +115,3 @@ class GarageAvailabilitySlot extends Equatable {
   @override
   List<Object?> get props => [dayOfWeek, startMinute, endMinute];
 }
-

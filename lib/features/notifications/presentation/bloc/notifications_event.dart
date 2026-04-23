@@ -19,3 +19,6 @@ class NotificationMarkReadRequested extends NotificationsEvent {
   List<Object?> get props => [id];
 }
 
+class NotificationsMarkAllReadRequested extends NotificationsEvent {
+  const NotificationsMarkAllReadRequested();
+}

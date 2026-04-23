@@ -26,6 +26,8 @@ class ApiEndpoints {
       '/drivers/appointments/$id/reschedule';
   static String driverAppointmentCancel(String id) =>
       '/drivers/appointments/$id/cancel';
+  static String driverAppointmentReview(String id) =>
+      '/drivers/appointments/$id/review';
 
   // ----- Driver Vehicles (try /driver/vehicles if /drivers/vehicles returns 404) -----
   static const String driverVehicles = '/driver/vehicles';
@@ -33,6 +35,8 @@ class ApiEndpoints {
 
   // ----- Driver Profile (prefix: /driver) -----
   static const String driverProfile = '/driver/profile';
+  static const String driverProfileChangePassword =
+      '/driver/profile/change-password';
 
   // ----- Driver Community (prefix: /driver/community) -----
   static const String driverCommunityPosts = '/driver/community/posts';
@@ -46,7 +50,8 @@ class ApiEndpoints {
   static const String driverMaintenanceCatalog = '/driver/maintenance/catalog';
   static String driverMaintenanceVehicleHealth(String vehicleId) =>
       '/driver/maintenance/health/$vehicleId';
-  static const String driverMaintenanceUpcoming = '/driver/maintenance/upcoming';
+  static const String driverMaintenanceUpcoming =
+      '/driver/maintenance/upcoming';
   static const String driverMaintenanceHistory = '/driver/maintenance/history';
   static String driverMaintenanceUpcomingById(String id) =>
       '/driver/maintenance/upcoming/$id';
@@ -56,9 +61,17 @@ class ApiEndpoints {
       '/driver/maintenance/upcoming/$id/reminder';
   static String driverMaintenanceUpcomingMarkDone(String id) =>
       '/driver/maintenance/upcoming/$id/done';
-  static const String driverMaintenanceNotifications = '/driver/maintenance/notifications';
+  static const String driverMaintenanceNotifications =
+      '/driver/maintenance/notifications';
   static String driverMaintenanceNotificationRead(String id) =>
       '/driver/maintenance/notifications/$id/read';
+
+  // ----- Driver Notifications (prefix: /driver/notifications) -----
+  static const String driverNotifications = '/driver/notifications';
+  static String driverNotificationRead(String id) =>
+      '/driver/notifications/$id/read';
+  static const String driverNotificationsReadAll =
+      '/driver/notifications/read-all';
 
   // ----- Legacy / other (keep for future use) -----
   static const String profile = '/profile';
