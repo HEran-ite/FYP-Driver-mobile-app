@@ -604,7 +604,7 @@ class _AppointmentCardFromEntity extends StatelessWidget {
   Future<void> _onRateGarage(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final reviewCtrl = TextEditingController();
-    int stars = 5;
+    int stars = 0;
     final submit = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -618,6 +618,17 @@ class _AppointmentCardFromEntity extends StatelessWidget {
                 children: [
                   const Text('How was your service experience?'),
                   const SizedBox(height: Spacing.sm),
+                  Text(
+                    stars == 0
+                        ? 'Tap a star to rate'
+                        : '$stars star${stars == 1 ? '' : 's'} selected',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: stars == 0
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.xs),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: List.generate(5, (i) {
@@ -652,7 +663,9 @@ class _AppointmentCardFromEntity extends StatelessWidget {
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
+                  onPressed: stars == 0
+                      ? null
+                      : () => Navigator.of(ctx).pop(true),
                   child: const Text('Submit'),
                 ),
               ],
@@ -936,6 +949,24 @@ class _NearbyCenterCard extends StatelessWidget {
                             color: AppColors.textSecondary,
                           ),
                         ),
+                        const SizedBox(width: Spacing.xs),
+                        InkWell(
+                          onTap: () => _showReviewsSheet(context, center),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            child: Text(
+                              'View reviews',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
                         const SizedBox(width: Spacing.md),
                         Icon(
                           Icons.location_on_outlined,
@@ -1049,6 +1080,302 @@ class _NearbyCenterCard extends StatelessWidget {
       return;
     }
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  static Future<void> _showReviewsSheet(
+    BuildContext context,
+    ServiceCenter center,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return FutureBuilder<_GarageReviewsPayload>(
+          future: _fetchGarageReviews(center.id),
+          builder: (ctx, snapshot) {
+            final loading = snapshot.connectionState == ConnectionState.waiting;
+            final hasError = snapshot.hasError;
+            final payload = snapshot.data;
+            final rating = payload?.averageRating ?? center.rating;
+            final total = payload?.totalRatings ?? center.reviewsCount;
+            final reviews = payload?.reviews ?? const <_GarageReviewItem>[];
+
+            return SizedBox(
+              height: MediaQuery.of(ctx).size.height * 0.72,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  Spacing.lg,
+                  Spacing.md,
+                  Spacing.lg,
+                  Spacing.lg,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      center.name,
+                      style: AppTextStyles.titleMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: Spacing.xs),
+                    Text(
+                      'Reviews & Rating',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: Spacing.md),
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded, color: AppColors.warning),
+                        const SizedBox(width: Spacing.xs),
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: AppTextStyles.titleMedium.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: Spacing.sm),
+                        Text(
+                          '$total review${total == 1 ? '' : 's'}',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: Spacing.md),
+                    if (loading)
+                      const Expanded(
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (hasError)
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            'Could not load reviews right now.',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.danger,
+                            ),
+                          ),
+                        ),
+                      )
+                    else if (reviews.isEmpty)
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            'No reviews yet for this garage.',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: reviews.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (_, i) {
+                            final review = reviews[i];
+                            final displayName = review.driverDisplayName;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: AppColors.textPrimary,
+                                    child: Text(
+                                      review.initials,
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: Spacing.sm),
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                displayName,
+                                                style: AppTextStyles.bodyMedium
+                                                    .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: Spacing.sm),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: List.generate(5, (idx) {
+                                                final filled =
+                                                    idx < review.rating;
+                                                return Icon(
+                                                  filled
+                                                      ? Icons.star_rounded
+                                                      : Icons
+                                                            .star_border_rounded,
+                                                  size: 15,
+                                                  color: filled
+                                                      ? AppColors.warning
+                                                      : AppColors.textSecondary,
+                                                );
+                                              }),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                review.comment.isEmpty
+                                                    ? 'No comment'
+                                                    : review.comment,
+                                                style: AppTextStyles.bodySmall
+                                                    .copyWith(
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                    ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: Spacing.sm),
+                                            Text(
+                                              _formatReviewDate(
+                                                review.createdAt,
+                                              ),
+                                              style: AppTextStyles.bodySmall
+                                                  .copyWith(
+                                                    color: AppColors
+                                                        .textSecondary,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static Future<_GarageReviewsPayload> _fetchGarageReviews(String garageId) async {
+    final res = await getIt<ApiClient>().dio.get<Map<String, dynamic>>(
+      ApiEndpoints.garageReviews(garageId),
+    );
+    final data = res.data ?? const <String, dynamic>{};
+    final averageRaw = data['averageRating'];
+    final totalRaw = data['totalRatings'];
+    final reviewsRaw = data['reviews'];
+    final reviews = <_GarageReviewItem>[];
+    if (reviewsRaw is List) {
+      for (final item in reviewsRaw) {
+        if (item is! Map) continue;
+        final map = Map<String, dynamic>.from(item);
+        final driverMap = map['driver'] is Map
+            ? Map<String, dynamic>.from(map['driver'] as Map)
+            : const <String, dynamic>{};
+        reviews.add(
+          _GarageReviewItem(
+            id: map['id']?.toString() ?? '',
+            rating: ((map['rating'] is num) ? (map['rating'] as num).toInt() : 0)
+                .clamp(0, 5),
+            comment: map['comment']?.toString() ?? '',
+            createdAt:
+                DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0),
+            driverFirstName: driverMap['firstName']?.toString() ?? '',
+            driverLastName: driverMap['lastName']?.toString() ?? '',
+          ),
+        );
+      }
+    }
+    return _GarageReviewsPayload(
+      averageRating: averageRaw is num ? averageRaw.toDouble() : 0.0,
+      totalRatings: totalRaw is num ? totalRaw.toInt() : 0,
+      reviews: reviews,
+    );
+  }
+
+  static String _formatReviewDate(DateTime date) {
+    if (date.millisecondsSinceEpoch == 0) return 'Unknown date';
+    const months = 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec';
+    final parts = months.split(',');
+    final month = parts[date.month - 1];
+    return '$month ${date.day}, ${date.year}';
+  }
+}
+
+class _GarageReviewsPayload {
+  const _GarageReviewsPayload({
+    required this.averageRating,
+    required this.totalRatings,
+    required this.reviews,
+  });
+
+  final double averageRating;
+  final int totalRatings;
+  final List<_GarageReviewItem> reviews;
+}
+
+class _GarageReviewItem {
+  const _GarageReviewItem({
+    required this.id,
+    required this.rating,
+    required this.comment,
+    required this.createdAt,
+    required this.driverFirstName,
+    required this.driverLastName,
+  });
+
+  final String id;
+  final int rating;
+  final String comment;
+  final DateTime createdAt;
+  final String driverFirstName;
+  final String driverLastName;
+
+  String get driverDisplayName {
+    final full = '$driverFirstName $driverLastName'.trim();
+    if (full.isNotEmpty) return full;
+    return 'Driver';
+  }
+
+  String get initials {
+    final first = driverFirstName.trim().isNotEmpty
+        ? driverFirstName.trim()[0].toUpperCase()
+        : '';
+    final last = driverLastName.trim().isNotEmpty
+        ? driverLastName.trim()[0].toUpperCase()
+        : '';
+    final combined = '$first$last';
+    if (combined.isNotEmpty) return combined;
+    return 'D';
   }
 }
 

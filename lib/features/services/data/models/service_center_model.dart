@@ -61,18 +61,21 @@ class ServiceCenterModel {
       for (final e in slotsRaw) {
         if (e is Map) {
           slots.add(
-            GarageAvailabilitySlotModel.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
+            GarageAvailabilitySlotModel.fromJson(Map<String, dynamic>.from(e)),
           );
         }
       }
     }
     return ServiceCenterModel(
       id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? json['garageName']?.toString() ?? 'Garage',
-      subtitle: json['subtitle']?.toString() ?? json['address']?.toString() ?? '',
-      phone: json['phone']?.toString() ??
+      name:
+          json['name']?.toString() ??
+          json['garageName']?.toString() ??
+          'Garage',
+      subtitle:
+          json['subtitle']?.toString() ?? json['address']?.toString() ?? '',
+      phone:
+          json['phone']?.toString() ??
           json['phoneNumber']?.toString() ??
           json['contactPhone']?.toString() ??
           json['contact_number']?.toString() ??
@@ -107,29 +110,29 @@ class ServiceCenterModel {
   }
 
   ServiceCenter toEntity() => ServiceCenter(
-        id: id,
-        name: name,
-        subtitle: subtitle,
-        phone: phone,
-        latitude: latitude,
-        longitude: longitude,
-        rating: rating,
-        reviewsCount: reviewsCount,
-        distanceMiles: distanceMiles,
-        isOpen: isOpen,
-        isRegistered: isRegistered,
-        onsiteServiceEnabled: onsiteServiceEnabled,
-        services: services,
-        availabilitySlots: availabilitySlots
-            .map(
-              (s) => GarageAvailabilitySlot(
-                dayOfWeek: s.dayOfWeek,
-                startMinute: s.startMinute,
-                endMinute: s.endMinute,
-              ),
-            )
-            .toList(),
-      );
+    id: id,
+    name: name,
+    subtitle: subtitle,
+    phone: phone,
+    latitude: latitude,
+    longitude: longitude,
+    rating: rating,
+    reviewsCount: reviewsCount,
+    distanceMiles: distanceMiles,
+    isOpen: isOpen,
+    isRegistered: isRegistered,
+    onsiteServiceEnabled: onsiteServiceEnabled,
+    services: services,
+    availabilitySlots: availabilitySlots
+        .map(
+          (s) => GarageAvailabilitySlot(
+            dayOfWeek: s.dayOfWeek,
+            startMinute: s.startMinute,
+            endMinute: s.endMinute,
+          ),
+        )
+        .toList(),
+  );
 }
 
 class GarageAvailabilitySlotModel {

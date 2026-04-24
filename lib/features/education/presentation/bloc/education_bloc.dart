@@ -69,12 +69,19 @@ class EducationBloc extends Bloc<EducationEvent, EducationState> {
 
   String _message(Object e) {
     if (e is DioException) {
+      final code = e.response?.statusCode;
       final data = e.response?.data;
       if (data is Map && data['message'] != null) {
         return data['message'].toString();
       }
       if (data is Map && data['error'] != null) {
         return data['error'].toString();
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        return data;
+      }
+      if (code != null) {
+        return 'Education request failed (HTTP $code).';
       }
     }
     return e.toString().contains('SocketException') ||

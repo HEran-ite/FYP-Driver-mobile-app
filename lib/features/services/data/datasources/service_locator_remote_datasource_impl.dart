@@ -25,9 +25,13 @@ class ServiceLocatorRemoteDataSourceImpl
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
       final list = res.data ?? [];
-      return list
-          .map((e) => ServiceCenterModel.fromJson(
-              Map<String, dynamic>.from(e as Map)))
+      final enriched = await _enrichWithRatingSummaries(list);
+      return enriched
+          .map(
+            (e) => ServiceCenterModel.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
           .toList();
     } on DioException catch (e) {
       if (e.response?.statusCode == 404 || e.type == DioExceptionType.connectionError) {
@@ -36,4 +40,56 @@ class ServiceLocatorRemoteDataSourceImpl
       rethrow;
     }
   }
+
+  Future<List<dynamic>> _enrichWithRatingSummaries(List<dynamic> garages) async {
+    final baseMaps = garages
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    if (baseMaps.isEmpty) return const <dynamic>[];
+
+    final enriched = await Future.wait(
+      baseMaps.map((g) async {
+        final id = g['id']?.toString().trim() ?? '';
+        if (id.isEmpty) return g;
+        final summary = await _fetchRatingSummary(id);
+        if (summary == null) return g;
+        return {
+          ...g,
+          'rating': summary.averageRating ?? 0.0,
+          'reviewsCount': summary.totalRatings,
+        };
+      }),
+    );
+    return enriched;
+  }
+
+  Future<_GarageRatingSummary?> _fetchRatingSummary(String garageId) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.garageRatingSummary(garageId),
+      );
+      final data = res.data ?? const <String, dynamic>{};
+      final avg = data['averageRating'];
+      final total = data['totalRatings'];
+      return _GarageRatingSummary(
+        averageRating: avg is num ? avg.toDouble() : null,
+        totalRatings: total is num ? total.toInt() : 0,
+      );
+    } on DioException {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _GarageRatingSummary {
+  const _GarageRatingSummary({
+    required this.averageRating,
+    required this.totalRatings,
+  });
+
+  final double? averageRating;
+  final int totalRatings;
 }

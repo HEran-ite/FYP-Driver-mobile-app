@@ -45,6 +45,8 @@ class ApiEndpoints {
   static const String driverEducation = '/driver/education';
   static String driverEducationById(String id) => '/driver/education/$id';
   static const String driverEducationSearch = '/driver/education/search';
+  static const String educationContent = '/education/content';
+  static String educationContentById(String id) => '/education/content/$id';
 
   // ----- Driver Maintenance (prefix: /driver/maintenance) -----
   static const String driverMaintenanceCatalog = '/driver/maintenance/catalog';
@@ -79,6 +81,10 @@ class ApiEndpoints {
   static String garageAvailabilitySlots(String garageId) =>
       '/garages/availability/$garageId/slots';
   static const String notifications = '/notifications';
+  static String garageRatingSummary(String garageId) =>
+      '/garages/ratings/$garageId/summary';
+  static String garageReviews(String garageId) =>
+      '/garages/ratings/$garageId/reviews';
 
   ApiEndpoints._();
 }
