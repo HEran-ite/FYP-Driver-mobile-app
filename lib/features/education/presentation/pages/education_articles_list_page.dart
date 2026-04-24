@@ -122,6 +122,7 @@ class _EducationArticlesListViewState extends State<_EducationArticlesListView> 
                         EducationCategory.safety,
                         EducationCategory.maintenance,
                         EducationCategory.tips,
+                        EducationCategory.manuals,
                       ].map(
                         (c) => Padding(
                           padding: const EdgeInsets.only(right: Spacing.xs),

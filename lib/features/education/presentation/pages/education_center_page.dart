@@ -266,6 +266,7 @@ class _CategoryGrid extends StatelessWidget {
       _CatData(EducationCategory.safety, 'Safety', _count(EducationCategory.safety), Icons.shield_outlined, const Color(0xFFC62828)),
       _CatData(EducationCategory.maintenance, 'Maintenance', _count(EducationCategory.maintenance), Icons.schedule_rounded, const Color(0xFFF9A825)),
       _CatData(EducationCategory.tips, 'Tips', _count(EducationCategory.tips), Icons.lightbulb_outline_rounded, const Color(0xFF0277BD)),
+      _CatData(EducationCategory.manuals, 'Manuals', _count(EducationCategory.manuals), Icons.menu_book_rounded, const Color(0xFF6A1B9A)),
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -386,7 +387,7 @@ class _FeaturedArticleCard extends StatelessWidget {
               ),
               const SizedBox(height: Spacing.xs),
               Text(
-                '${article.topicTag} • ${article.estimatedReadMinutes} min read',
+                '${article.topicTag} • ${article.estimatedReadMinutes} min',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textSecondary,
                 ),
