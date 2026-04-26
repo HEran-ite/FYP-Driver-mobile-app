@@ -40,7 +40,6 @@ class EducationRemoteDataSourceImpl implements EducationRemoteDataSource {
     final data = await _getFirstSuccessful(
       endpoints: const [
         ApiEndpoints.driverEducation,
-        ApiEndpoints.educationContent,
       ],
     );
     return _parseList(data);
@@ -79,7 +78,6 @@ class EducationRemoteDataSourceImpl implements EducationRemoteDataSource {
     final data = await _getFirstSuccessful(
       endpoints: [
         ApiEndpoints.driverEducationById(id),
-        ApiEndpoints.educationContentById(id),
       ],
     );
     if (data is Map<String, dynamic>) {

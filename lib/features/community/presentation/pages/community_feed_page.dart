@@ -474,20 +474,28 @@ class _CommunityFeedPageState extends State<CommunityFeedPage> {
                                 child: Text(c.content),
                               ),
                               trailing: c.isMine
-                                  ? IconButton(
-                                      tooltip: 'Delete',
-                                      onPressed: () {
-                                        context.read<CommunityBloc>().add(
-                                          CommunityDeleteCommentRequested(
-                                            postId: post.id,
-                                            commentId: c.id,
-                                          ),
-                                        );
-                                      },
+                                  ? PopupMenuButton<String>(
+                                      tooltip: 'Actions',
                                       icon: const Icon(
-                                        Icons.delete_outline_rounded,
-                                        color: AppColors.danger,
+                                        Icons.more_vert_rounded,
+                                        color: AppColors.textSecondary,
                                       ),
+                                      onSelected: (value) {
+                                        if (value == 'delete') {
+                                          context.read<CommunityBloc>().add(
+                                            CommunityDeleteCommentRequested(
+                                              postId: post.id,
+                                              commentId: c.id,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      itemBuilder: (_) => const [
+                                        PopupMenuItem<String>(
+                                          value: 'delete',
+                                          child: Text('Delete'),
+                                        ),
+                                      ],
                                     )
                                   : null,
                             );

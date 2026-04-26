@@ -64,45 +64,94 @@ class _ServiceLocatorViewState extends State<_ServiceLocatorView> {
   Future<void> _loadNearbyWithLocation() async {
     double lat = _fallbackLat;
     double lng = _fallbackLng;
+    String? locationIssueMessage;
+    bool suggestOpenLocationSettings = false;
+    bool suggestOpenAppSettings = false;
 
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        // Keep fallback coords; backend requires params.
-        throw Exception('Location services are disabled');
+        locationIssueMessage =
+            'Location services are disabled. Enable location to see nearby garages.';
+        suggestOpenLocationSettings = true;
+      } else {
+        var permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.deniedForever) {
+          locationIssueMessage =
+              'Location permission is permanently denied. Allow it from app settings.';
+          suggestOpenAppSettings = true;
+        } else if (permission == LocationPermission.denied) {
+          locationIssueMessage =
+              'Location permission denied. Allow location permission to find nearby garages.';
+          suggestOpenAppSettings = true;
+        }
       }
 
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+      if (locationIssueMessage == null) {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        lat = pos.latitude;
+        lng = pos.longitude;
+      } else {
+        // Best-effort fallback: use last known position before static fallback.
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          lat = lastKnown.latitude;
+          lng = lastKnown.longitude;
+        }
       }
-      if (permission == LocationPermission.deniedForever) {
-        throw Exception('Location permissions are permanently denied');
-      }
-      if (permission == LocationPermission.denied) {
-        throw Exception('Location permission denied');
-      }
-
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      lat = pos.latitude;
-      lng = pos.longitude;
     } catch (e) {
-      // Show a helpful message but still load with fallback coordinates to avoid backend 400s.
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$e. Showing results based on default location.'),
-          backgroundColor: AppColors.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
+      locationIssueMessage ??=
+          'Unable to fetch your location. Showing fallback results.';
+    }
+
+    if (locationIssueMessage != null && mounted) {
+      _showLocationIssue(
+        locationIssueMessage,
+        suggestOpenLocationSettings: suggestOpenLocationSettings,
+        suggestOpenAppSettings: suggestOpenAppSettings,
       );
     }
 
     if (!mounted) return;
     context.read<ServiceLocatorBloc>().add(
       LoadNearbyGarages(latitude: lat, longitude: lng),
+    );
+  }
+
+  void _showLocationIssue(
+    String message, {
+    bool suggestOpenLocationSettings = false,
+    bool suggestOpenAppSettings = false,
+  }) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.warning,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 6),
+        action: (suggestOpenLocationSettings || suggestOpenAppSettings)
+            ? SnackBarAction(
+                label: 'Settings',
+                textColor: AppColors.textPrimary,
+                onPressed: () async {
+                  if (suggestOpenLocationSettings) {
+                    await Geolocator.openLocationSettings();
+                    return;
+                  }
+                  if (suggestOpenAppSettings) {
+                    await Geolocator.openAppSettings();
+                  }
+                },
+              )
+            : null,
+      ),
     );
   }
 
@@ -1129,7 +1178,10 @@ class _NearbyCenterCard extends StatelessWidget {
                     const SizedBox(height: Spacing.md),
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded, color: AppColors.warning),
+                        const Icon(
+                          Icons.star_rounded,
+                          color: AppColors.warning,
+                        ),
                         const SizedBox(width: Spacing.xs),
                         Text(
                           rating.toStringAsFixed(1),
@@ -1259,8 +1311,8 @@ class _NearbyCenterCard extends StatelessWidget {
                                               ),
                                               style: AppTextStyles.bodySmall
                                                   .copyWith(
-                                                    color: AppColors
-                                                        .textSecondary,
+                                                    color:
+                                                        AppColors.textSecondary,
                                                   ),
                                             ),
                                           ],
@@ -1284,7 +1336,9 @@ class _NearbyCenterCard extends StatelessWidget {
     );
   }
 
-  static Future<_GarageReviewsPayload> _fetchGarageReviews(String garageId) async {
+  static Future<_GarageReviewsPayload> _fetchGarageReviews(
+    String garageId,
+  ) async {
     final res = await getIt<ApiClient>().dio.get<Map<String, dynamic>>(
       ApiEndpoints.garageReviews(garageId),
     );
@@ -1303,8 +1357,9 @@ class _NearbyCenterCard extends StatelessWidget {
         reviews.add(
           _GarageReviewItem(
             id: map['id']?.toString() ?? '',
-            rating: ((map['rating'] is num) ? (map['rating'] as num).toInt() : 0)
-                .clamp(0, 5),
+            rating:
+                ((map['rating'] is num) ? (map['rating'] as num).toInt() : 0)
+                    .clamp(0, 5),
             comment: map['comment']?.toString() ?? '',
             createdAt:
                 DateTime.tryParse(map['createdAt']?.toString() ?? '') ??

@@ -2,16 +2,9 @@
 /// Base URL should be configured via environment or app constants.
 library;
 
-import 'dart:io' show Platform;
-
 class ApiEndpoints {
-  /// Base URL for driver-garage-backend.
-  /// Android emulator cannot reach localhost; 10.0.2.2 is the host machine.
-  /// iOS simulator and desktop can use localhost.
-  static String get baseUrl {
-    if (Platform.isAndroid) return 'http://10.0.2.2:4000';
-    return 'http://localhost:4000';
-  }
+  /// Deployed backend base URL.
+  static const String baseUrl = 'https://driver-garage-backend.onrender.com';
 
   // ----- Driver Auth (prefix: /drivers/auth) -----
   static const String driverAuthSignup = '/drivers/auth/signup';
