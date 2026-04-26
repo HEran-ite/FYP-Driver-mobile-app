@@ -9,6 +9,7 @@ enum EducationCategory {
   maintenance,
   repairs,
   tips,
+  manuals,
 }
 
 extension EducationCategoryDisplay on EducationCategory {
@@ -24,6 +25,8 @@ extension EducationCategoryDisplay on EducationCategory {
         return 'Tips';
       case EducationCategory.all:
         return 'General';
+      case EducationCategory.manuals:
+        return 'Manuals';
     }
   }
 }
@@ -35,6 +38,7 @@ class EducationArticle extends Equatable {
     required this.description,
     required this.category,
     this.imageUrl,
+    this.manualUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -44,6 +48,7 @@ class EducationArticle extends Equatable {
   final String description;
   final EducationCategory category;
   final String? imageUrl;
+  final String? manualUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -62,6 +67,8 @@ class EducationArticle extends Equatable {
         return 'Tips & tricks';
       case EducationCategory.all:
         return 'Guide';
+      case EducationCategory.manuals:
+        return 'Manual';
     }
   }
 
@@ -77,5 +84,5 @@ class EducationArticle extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, title, description, category, imageUrl, createdAt, updatedAt];
+      [id, title, description, category, imageUrl, manualUrl, createdAt, updatedAt];
 }

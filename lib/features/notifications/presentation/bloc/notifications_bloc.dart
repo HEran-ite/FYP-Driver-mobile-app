@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../application/usecases/list_notifications_usecase.dart';
+import '../../application/usecases/mark_all_notifications_read_usecase.dart';
 import '../../application/usecases/mark_notification_read_usecase.dart';
 import 'notifications_event.dart';
 import 'notifications_state.dart';
@@ -12,17 +13,24 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   NotificationsBloc({
     required ListNotificationsUseCase list,
     required MarkNotificationReadUseCase markRead,
-  })  : _list = list,
-        _markRead = markRead,
-        super(const NotificationsState()) {
+    required MarkAllNotificationsReadUseCase markAllRead,
+  }) : _list = list,
+       _markRead = markRead,
+       _markAllRead = markAllRead,
+       super(const NotificationsState()) {
     on<NotificationsLoadRequested>(_onLoad);
     on<NotificationMarkReadRequested>(_onMarkRead);
+    on<NotificationsMarkAllReadRequested>(_onMarkAllRead);
   }
 
   final ListNotificationsUseCase _list;
   final MarkNotificationReadUseCase _markRead;
+  final MarkAllNotificationsReadUseCase _markAllRead;
 
-  Future<void> _onLoad(NotificationsLoadRequested event, Emitter<NotificationsState> emit) async {
+  Future<void> _onLoad(
+    NotificationsLoadRequested event,
+    Emitter<NotificationsState> emit,
+  ) async {
     emit(state.copyWith(loading: true, clearError: true));
     try {
       final items = await _list();
@@ -32,7 +40,10 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     }
   }
 
-  Future<void> _onMarkRead(NotificationMarkReadRequested event, Emitter<NotificationsState> emit) async {
+  Future<void> _onMarkRead(
+    NotificationMarkReadRequested event,
+    Emitter<NotificationsState> emit,
+  ) async {
     // Optimistic update.
     final current = state.items;
     final updated = current
@@ -43,6 +54,21 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
       await _markRead(event.id);
     } catch (_) {
       // Revert on failure.
+      emit(state.copyWith(items: current));
+    }
+  }
+
+  Future<void> _onMarkAllRead(
+    NotificationsMarkAllReadRequested event,
+    Emitter<NotificationsState> emit,
+  ) async {
+    final current = state.items;
+    if (!current.any((n) => !n.read)) return;
+    final updated = current.map((n) => n.copyWith(read: true)).toList();
+    emit(state.copyWith(items: updated));
+    try {
+      await _markAllRead();
+    } catch (_) {
       emit(state.copyWith(items: current));
     }
   }
@@ -58,4 +84,3 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     return e.toString();
   }
 }
-

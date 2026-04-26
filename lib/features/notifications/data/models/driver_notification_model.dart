@@ -36,7 +36,9 @@ class DriverNotificationModel {
       ];
       for (final k in keys) {
         final v = map[k];
-        if (v != null && v.toString().trim().isNotEmpty) return v.toString().trim();
+        if (v != null && v.toString().trim().isNotEmpty) {
+          return v.toString().trim();
+        }
       }
       return null;
     }
@@ -68,11 +70,11 @@ class DriverNotificationModel {
   }
 
   DriverNotification toEntity() => DriverNotification(
-        id: id,
-        title: title,
-        body: body,
-        read: read,
-        createdAt: createdAt,
-        upcomingId: upcomingId,
-      );
+    id: id,
+    title: title,
+    body: body,
+    read: read,
+    createdAt: createdAt,
+    upcomingId: upcomingId,
+  );
 }

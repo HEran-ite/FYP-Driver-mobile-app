@@ -69,12 +69,37 @@ class EducationBloc extends Bloc<EducationEvent, EducationState> {
 
   String _message(Object e) {
     if (e is DioException) {
+      final code = e.response?.statusCode;
       final data = e.response?.data;
       if (data is Map && data['message'] != null) {
         return data['message'].toString();
       }
       if (data is Map && data['error'] != null) {
         return data['error'].toString();
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        final text = data.trim();
+        final lower = text.toLowerCase();
+        if (lower.contains('<!doctype html') || lower.contains('<html')) {
+          if (code == 502 || code == 503 || code == 504) {
+            return 'Education service is temporarily unavailable. Please try again.';
+          }
+          return code != null
+              ? 'Education request failed (HTTP $code).'
+              : 'Education request failed.';
+        }
+        if (text.length > 220) {
+          return code != null
+              ? 'Education request failed (HTTP $code).'
+              : 'Education request failed.';
+        }
+        return text;
+      }
+      if (code != null) {
+        if (code == 502 || code == 503 || code == 504) {
+          return 'Education service is temporarily unavailable. Please try again.';
+        }
+        return 'Education request failed (HTTP $code).';
       }
     }
     return e.toString().contains('SocketException') ||

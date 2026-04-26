@@ -33,4 +33,3 @@ class NotificationsState extends Equatable {
   @override
   List<Object?> get props => [loading, items, error];
 }
-

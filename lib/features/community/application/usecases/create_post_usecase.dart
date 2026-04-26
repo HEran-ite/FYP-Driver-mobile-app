@@ -11,12 +11,10 @@ class CreatePostUseCase {
     required String content,
     String? imageUrl,
     String? imageFilePath,
-  }) =>
-      _repo.createPost(
-        title: title,
-        content: content,
-        imageUrl: imageUrl,
-        imageFilePath: imageFilePath,
-      );
+  }) => _repo.createPost(
+    title: title,
+    content: content,
+    imageUrl: imageUrl,
+    imageFilePath: imageFilePath,
+  );
 }
-

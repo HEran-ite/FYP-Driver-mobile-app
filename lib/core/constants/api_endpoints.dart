@@ -2,16 +2,9 @@
 /// Base URL should be configured via environment or app constants.
 library;
 
-import 'dart:io' show Platform;
-
 class ApiEndpoints {
-  /// Base URL for driver-garage-backend.
-  /// Android emulator cannot reach localhost; 10.0.2.2 is the host machine.
-  /// iOS simulator and desktop can use localhost.
-  static String get baseUrl {
-    if (Platform.isAndroid) return 'http://10.0.2.2:4000';
-    return 'http://localhost:4000';
-  }
+  /// Deployed backend base URL.
+  static const String baseUrl = 'https://driver-garage-backend.onrender.com';
 
   // ----- Driver Auth (prefix: /drivers/auth) -----
   static const String driverAuthSignup = '/drivers/auth/signup';
@@ -26,6 +19,8 @@ class ApiEndpoints {
       '/drivers/appointments/$id/reschedule';
   static String driverAppointmentCancel(String id) =>
       '/drivers/appointments/$id/cancel';
+  static String driverAppointmentReview(String id) =>
+      '/drivers/appointments/$id/review';
 
   // ----- Driver Vehicles (try /driver/vehicles if /drivers/vehicles returns 404) -----
   static const String driverVehicles = '/driver/vehicles';
@@ -33,6 +28,8 @@ class ApiEndpoints {
 
   // ----- Driver Profile (prefix: /driver) -----
   static const String driverProfile = '/driver/profile';
+  static const String driverProfileChangePassword =
+      '/driver/profile/change-password';
 
   // ----- Driver Community (prefix: /driver/community) -----
   static const String driverCommunityPosts = '/driver/community/posts';
@@ -41,12 +38,15 @@ class ApiEndpoints {
   static const String driverEducation = '/driver/education';
   static String driverEducationById(String id) => '/driver/education/$id';
   static const String driverEducationSearch = '/driver/education/search';
+  static const String educationContent = '/education/content';
+  static String educationContentById(String id) => '/education/content/$id';
 
   // ----- Driver Maintenance (prefix: /driver/maintenance) -----
   static const String driverMaintenanceCatalog = '/driver/maintenance/catalog';
   static String driverMaintenanceVehicleHealth(String vehicleId) =>
       '/driver/maintenance/health/$vehicleId';
-  static const String driverMaintenanceUpcoming = '/driver/maintenance/upcoming';
+  static const String driverMaintenanceUpcoming =
+      '/driver/maintenance/upcoming';
   static const String driverMaintenanceHistory = '/driver/maintenance/history';
   static String driverMaintenanceUpcomingById(String id) =>
       '/driver/maintenance/upcoming/$id';
@@ -56,9 +56,17 @@ class ApiEndpoints {
       '/driver/maintenance/upcoming/$id/reminder';
   static String driverMaintenanceUpcomingMarkDone(String id) =>
       '/driver/maintenance/upcoming/$id/done';
-  static const String driverMaintenanceNotifications = '/driver/maintenance/notifications';
+  static const String driverMaintenanceNotifications =
+      '/driver/maintenance/notifications';
   static String driverMaintenanceNotificationRead(String id) =>
       '/driver/maintenance/notifications/$id/read';
+
+  // ----- Driver Notifications (prefix: /driver/notifications) -----
+  static const String driverNotifications = '/driver/notifications';
+  static String driverNotificationRead(String id) =>
+      '/driver/notifications/$id/read';
+  static const String driverNotificationsReadAll =
+      '/driver/notifications/read-all';
 
   // ----- Legacy / other (keep for future use) -----
   static const String profile = '/profile';
@@ -66,6 +74,10 @@ class ApiEndpoints {
   static String garageAvailabilitySlots(String garageId) =>
       '/garages/availability/$garageId/slots';
   static const String notifications = '/notifications';
+  static String garageRatingSummary(String garageId) =>
+      '/garages/ratings/$garageId/summary';
+  static String garageReviews(String garageId) =>
+      '/garages/ratings/$garageId/reviews';
 
   ApiEndpoints._();
 }

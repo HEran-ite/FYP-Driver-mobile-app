@@ -17,6 +17,7 @@ class DriverNotification extends Equatable {
   final String body;
   final bool read;
   final DateTime createdAt;
+
   /// Maintenance upcoming / reminder id when the API sends it (for deep-linking).
   final String? upcomingId;
 
@@ -41,4 +42,3 @@ class DriverNotification extends Equatable {
   @override
   List<Object?> get props => [id, title, body, read, createdAt, upcomingId];
 }
-

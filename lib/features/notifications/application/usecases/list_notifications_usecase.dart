@@ -9,4 +9,3 @@ class ListNotificationsUseCase {
 
   Future<List<DriverNotification>> call() => _repo.listNotifications();
 }
-

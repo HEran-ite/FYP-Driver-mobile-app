@@ -8,4 +8,3 @@ class DeletePostUseCase {
 
   Future<void> call(String id) => _repo.deletePost(id);
 }
-

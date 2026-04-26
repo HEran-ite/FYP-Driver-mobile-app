@@ -704,7 +704,7 @@ class _Step3Upload extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onBack,
                   style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: Spacing.md)),
-                  child: const Text('Continue'),
+                  child: const Text('Back'),
                 ),
               ),
               const SizedBox(width: Spacing.md),
@@ -716,7 +716,7 @@ class _Step3Upload extends StatelessWidget {
                     foregroundColor: AppColors.textOnPrimary,
                     padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                   ),
-                  child: const Text('Save'),
+                  child: const Text('Continue'),
                 ),
               ),
             ],

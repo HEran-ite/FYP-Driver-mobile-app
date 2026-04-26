@@ -23,7 +23,20 @@ class MaintenanceUpcomingListItem extends StatelessWidget {
   final VoidCallback? onMarkDone;
 
   static String _formatDate(DateTime d) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final m = months[d.month - 1];
     return '$m ${d.day}, ${d.year}';
   }
@@ -46,7 +59,11 @@ class MaintenanceUpcomingListItem extends StatelessWidget {
     }
     final today = DateTime.now();
     final d0 = DateTime(today.year, today.month, today.day);
-    final d1 = DateTime(m.scheduledAt.year, m.scheduledAt.month, m.scheduledAt.day);
+    final d1 = DateTime(
+      m.scheduledAt.year,
+      m.scheduledAt.month,
+      m.scheduledAt.day,
+    );
     final diff = d1.difference(d0).inDays;
     if (diff < 0) return 'Urgent';
     if (diff <= 3) return 'Soon';
@@ -69,7 +86,11 @@ class MaintenanceUpcomingListItem extends StatelessWidget {
     }
     final today = DateTime.now();
     final d0 = DateTime(today.year, today.month, today.day);
-    final d1 = DateTime(m.scheduledAt.year, m.scheduledAt.month, m.scheduledAt.day);
+    final d1 = DateTime(
+      m.scheduledAt.year,
+      m.scheduledAt.month,
+      m.scheduledAt.day,
+    );
     final diff = d1.difference(d0).inDays;
     if (diff < 0) return AppColors.danger;
     if (diff <= 3) return AppColors.pending;
@@ -127,17 +148,25 @@ class MaintenanceUpcomingListItem extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         'Plate $plate',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                     const SizedBox(height: Spacing.sm),
                     Row(
                       children: [
-                        const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 16,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(width: Spacing.xs),
                         Text(
                           _formatDate(item.scheduledAt),
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -146,10 +175,15 @@ class MaintenanceUpcomingListItem extends StatelessWidget {
               ),
               const SizedBox(width: Spacing.sm),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.sm,
+                  vertical: Spacing.xs,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(BorderRadiusValues.circular),
+                  borderRadius: BorderRadius.circular(
+                    BorderRadiusValues.circular,
+                  ),
                 ),
                 child: Text(
                   _statusLabel(item),
@@ -164,30 +198,15 @@ class MaintenanceUpcomingListItem extends StatelessWidget {
           const SizedBox(height: Spacing.md),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onToggleReminder,
-                  icon: Icon(
-                    item.reminderEnabled ? Icons.notifications_active_rounded : Icons.notifications_off_outlined,
-                    size: 18,
-                  ),
-                  label: Text(item.reminderEnabled ? 'Reminder on' : 'Reminder off'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary,
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              ),
               if (onMarkDone != null) ...[
                 const SizedBox(width: Spacing.sm),
                 Expanded(
                   child: FilledButton.tonalIcon(
                     onPressed: onMarkDone,
-                    icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                    icon: const Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 18,
+                    ),
                     label: const Text('Done'),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
