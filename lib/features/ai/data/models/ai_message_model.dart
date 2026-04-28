@@ -59,6 +59,9 @@ class AiMessageModel {
     final createdAt =
         _asDateTime(json['createdAt']) ??
         _asDateTime(json['created_at']) ??
+        _asDateTime(json['sentAt']) ??
+        _asDateTime(json['sent_at']) ??
+        _asDateTime(json['time']) ??
         _asDateTime(json['timestamp']) ??
         DateTime.now();
 
@@ -80,6 +83,29 @@ String? _asString(dynamic v) {
 
 DateTime? _asDateTime(dynamic v) {
   if (v is DateTime) return v;
-  if (v is String) return DateTime.tryParse(v);
+  if (v is String) {
+    final parsed = DateTime.tryParse(v);
+    if (parsed != null) return parsed;
+    final asNum = num.tryParse(v);
+    if (asNum != null) {
+      return _fromEpoch(asNum);
+    }
+    return null;
+  }
+  if (v is num) {
+    return _fromEpoch(v);
+  }
+  if (v is Map) {
+    // Common wrappers e.g. {"date":"..."} or {"\$date":"..."}.
+    return _asDateTime(v['date']) ?? _asDateTime(v[r'$date']) ?? _asDateTime(v['value']);
+  }
   return null;
+}
+
+DateTime _fromEpoch(num value) {
+  final intVal = value.toInt();
+  // Heuristic: 13+ digits are milliseconds, 10 digits are seconds.
+  final isMillis = intVal.abs() >= 1000000000000;
+  final ms = isMillis ? intVal : intVal * 1000;
+  return DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true).toLocal();
 }
