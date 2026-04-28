@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -63,6 +64,14 @@ void main() async {
 
   // Initialize dependency injection
   await setupServiceLocator();
+
+  // Debug helper: print stored user token to console (never in release).
+  if (kDebugMode &&
+      (dotenv.env['DEBUG_PRINT_USER_TOKEN'] ?? 'false').toLowerCase() ==
+          'true') {
+    final token = await getIt<AuthLocalDataSource>().getToken();
+    debugPrint('USER_TOKEN: $token');
+  }
 
   // Run the app
   runApp(const App());

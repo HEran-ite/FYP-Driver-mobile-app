@@ -1,5 +1,6 @@
 library;
 
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/models/ai_message_model.dart';
@@ -20,6 +21,26 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
   }
 
   final AiChatRepository _repo;
+  
+  String _message(Object e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      final data = e.response?.data;
+      if (code == 401 || code == 403) {
+        return 'AI service unauthorized. Please login again.';
+      }
+      if (data is Map && data['error'] != null) {
+        return data['error'].toString();
+      }
+      if (data is Map && data['message'] != null) {
+        return data['message'].toString();
+      }
+      if (code != null) return 'AI request failed (HTTP $code).';
+    }
+    final s = e.toString();
+    if (s.length > 180) return 'AI request failed.';
+    return s;
+  }
 
   Future<void> _onSessionsRequested(
     AiSessionsRequested event,
@@ -28,14 +49,22 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
     emit(state.copyWith(sessionsLoading: true, clearError: true));
     try {
       final sessions = await _repo.listSessions();
+      final shouldAutoSelectLatest =
+          (state.currentSessionId == null || state.currentSessionId!.isEmpty) &&
+          sessions.isNotEmpty;
+      final latestSessionId = shouldAutoSelectLatest ? sessions.first.id : null;
       emit(state.copyWith(
         sessions: sessions,
+        currentSessionId: latestSessionId,
         sessionsLoading: false,
       ));
+      if (latestSessionId != null) {
+        add(AiMessagesRequested(sessionId: latestSessionId, refresh: true));
+      }
     } catch (e) {
       emit(state.copyWith(
         sessionsLoading: false,
-        error: e.toString(),
+        error: _message(e),
       ));
     }
   }
@@ -75,7 +104,7 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
     } catch (e) {
       emit(state.copyWith(
         messagesLoading: false,
-        error: e.toString(),
+        error: _message(e),
       ));
     }
   }
@@ -93,7 +122,7 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
     }
     try {
       final page = await _repo.getMessages(event.sessionId);
-      final items = page.items.toList()..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final items = _normalizeChronological(page.items);
       emit(state.copyWith(
         currentSessionId: event.sessionId,
         messages: items,
@@ -106,7 +135,7 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
       emit(state.copyWith(
         messagesLoading: false,
         loadingOlder: false,
-        error: e.toString(),
+        error: _message(e),
       ));
     }
   }
@@ -122,9 +151,9 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
     try {
       final page = await _repo.getMessages(sid, before: before);
       final combined = <AiMessageModel>[
-        ...page.items,
+        ..._normalizeChronological(page.items),
         ...state.messages,
-      ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      ];
       emit(state.copyWith(
         messages: _dedupeMessages(combined),
         hasMore: page.hasMore,
@@ -134,7 +163,7 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
     } catch (e) {
       emit(state.copyWith(
         loadingOlder: false,
-        error: e.toString(),
+        error: _message(e),
       ));
     }
   }
@@ -167,7 +196,7 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
       } catch (e) {
         emit(state.copyWith(
           messagesLoading: false,
-          error: e.toString(),
+          error: _message(e),
         ));
         return;
       }
@@ -181,8 +210,7 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
       createdAt: DateTime.now(),
     );
 
-    final optimisticMessages = [...state.messages, optimistic]
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final optimisticMessages = [...state.messages, optimistic];
 
     emit(state.copyWith(
       currentSessionId: sid,
@@ -198,8 +226,7 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
       if (assistant != null && assistant.content.trim().isNotEmpty) {
         nextMessages = [...nextMessages, assistant];
       }
-      nextMessages = _dedupeMessages(nextMessages)
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      nextMessages = _dedupeMessages(nextMessages);
 
       final sessions = [...state.sessions];
       final idx = sessions.indexWhere((s) => s.id == sid);
@@ -227,7 +254,7 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
     } catch (e) {
       emit(state.copyWith(
         sending: false,
-        error: e.toString(),
+        error: _message(e),
       ));
     }
   }
@@ -259,7 +286,7 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
     } catch (e) {
       emit(state.copyWith(
         clearDeletingSessionId: true,
-        error: e.toString(),
+        error: _message(e),
       ));
     }
   }
@@ -273,5 +300,21 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
       }
     }
     return out;
+  }
+
+  List<AiMessageModel> _normalizeChronological(List<AiMessageModel> items) {
+    if (items.length < 2) return items.toList();
+    var ascPairs = 0;
+    var descPairs = 0;
+    for (var i = 1; i < items.length; i++) {
+      final prev = items[i - 1].createdAt;
+      final curr = items[i].createdAt;
+      if (curr.isAfter(prev)) ascPairs++;
+      if (curr.isBefore(prev)) descPairs++;
+    }
+    if (descPairs > ascPairs) {
+      return items.reversed.toList();
+    }
+    return items.toList();
   }
 }
