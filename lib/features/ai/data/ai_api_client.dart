@@ -1,9 +1,7 @@
 library;
 
-import 'dart:convert';
-import 'dart:io' show Platform;
-
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../../auth/data/datasources/auth_local_datasource.dart';
@@ -28,11 +26,25 @@ class AiApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final uid = await _getUserId();
-          if (uid != null && uid.isNotEmpty) {
-            options.headers['X-User-Id'] = uid;
+          // Option B (Supabase Auth -> RAG):
+          // Prefer explicit bearer token from `.env` (Supabase access token).
+          final envToken = (dotenv.env['AI_AUTH_BEARER_TOKEN'] ?? '').trim();
+          if (_looksLikeJwt(envToken)) {
+            options.headers['Authorization'] = 'Bearer $envToken';
+            return handler.next(options);
           }
-          // TODO: move to Authorization: Bearer <jwt> when backend enforces it.
+          if (kDebugMode && envToken.isNotEmpty) {
+            debugPrint(
+              'AI_AUTH_BEARER_TOKEN is set but not a JWT; falling back to stored login token.',
+            );
+          }
+
+          // Fallback: use app's stored auth token if present.
+          final token = await _authLocal.getToken();
+          final trimmed = token?.trim() ?? '';
+          if (trimmed.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $trimmed';
+          }
           return handler.next(options);
         },
       ),
@@ -43,13 +55,13 @@ class AiApiClient {
   final Dio _dio;
 
   static String _resolveBaseUrl() {
-    final env =
-        dotenv.env['AI_API_BASE_URL']?.trim() ??
-        dotenv.env['FASTAPI_BASE_URL']?.trim() ??
-        '';
-    if (env.isNotEmpty) return env;
-    if (Platform.isAndroid) return 'http://10.0.2.2:8000';
-    return 'http://localhost:8000';
+    final env = dotenv.env['AI_API_BASE_URL']?.trim() ?? '';
+    if (env.isEmpty) {
+      throw StateError(
+        'Missing AI_API_BASE_URL in .env. Example: AI_API_BASE_URL=https://rag-system-iig7.onrender.com',
+      );
+    }
+    return env.endsWith('/') ? env.substring(0, env.length - 1) : env;
   }
 
   Future<Map<String, dynamic>> createSession({
@@ -108,19 +120,12 @@ class AiApiClient {
     await _dio.delete('/sessions/$sessionId');
   }
 
-  Future<String?> _getUserId() async {
-    final raw = await _authLocal.getUserJson();
-    if (raw == null || raw.trim().isEmpty) return null;
-    try {
-      final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      final id =
-          map['id']?.toString().trim() ??
-          map['_id']?.toString().trim() ??
-          map['userId']?.toString().trim();
-      if (id == null || id.isEmpty) return null;
-      return id;
-    } catch (_) {
-      return null;
-    }
+  bool _looksLikeJwt(String token) {
+    if (token.isEmpty) return false;
+    final parts = token.split('.');
+    return parts.length == 3 &&
+        parts[0].isNotEmpty &&
+        parts[1].isNotEmpty &&
+        parts[2].isNotEmpty;
   }
 }
