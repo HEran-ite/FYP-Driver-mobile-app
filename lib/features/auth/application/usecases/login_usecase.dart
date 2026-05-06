@@ -1,6 +1,5 @@
 library;
 
-import '../../domain/entities/driver_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 
 class LoginUseCase {

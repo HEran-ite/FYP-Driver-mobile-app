@@ -13,6 +13,7 @@ class SignupUseCase {
     required String email,
     required String phone,
     required String password,
+    String? firebaseIdToken,
   }) {
     return _repository.signup(
       firstName: firstName,
@@ -20,6 +21,7 @@ class SignupUseCase {
       email: email,
       phone: phone,
       password: password,
+      firebaseIdToken: firebaseIdToken,
     );
   }
 }

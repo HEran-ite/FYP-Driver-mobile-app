@@ -17,10 +17,15 @@ class AiPagedMessagesModel {
     Map<String, dynamic> json, {
     String? sessionId,
   }) {
-    final rawItems = json['items'] as List<dynamic>? ?? const [];
+    final rawItems = _messageListFrom(json);
     final items = rawItems
         .whereType<Map>()
-        .map((e) => AiMessageModel.fromJson(Map<String, dynamic>.from(e), fallbackSessionId: sessionId))
+        .map(
+          (e) => AiMessageModel.fromJson(
+            Map<String, dynamic>.from(e),
+            fallbackSessionId: sessionId,
+          ),
+        )
         .toList();
 
     return AiPagedMessagesModel(
@@ -30,6 +35,14 @@ class AiPagedMessagesModel {
           _asString(json['next_before']) ?? _asString(json['nextBefore']),
     );
   }
+}
+
+List<dynamic> _messageListFrom(Map<String, dynamic> json) {
+  for (final key in ['items', 'messages', 'results', 'data']) {
+    final v = json[key];
+    if (v is List) return v;
+  }
+  return const [];
 }
 
 String? _asString(dynamic v) {

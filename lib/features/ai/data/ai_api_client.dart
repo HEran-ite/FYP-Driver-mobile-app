@@ -15,8 +15,9 @@ class AiApiClient {
             Dio(
               BaseOptions(
                 baseUrl: _resolveBaseUrl(),
-                connectTimeout: const Duration(seconds: 15),
-                receiveTimeout: const Duration(seconds: 30),
+                // RAG / LLM backends often cold-start on free hosts; answers can exceed 30s.
+                connectTimeout: const Duration(seconds: 30),
+                receiveTimeout: const Duration(seconds: 120),
                 headers: const {
                   'Content-Type': 'application/json',
                   'Accept': 'application/json',
@@ -75,8 +76,8 @@ class AiApiClient {
     if (title != null && title.trim().isNotEmpty) {
       payload['title'] = title.trim();
     }
-    final res = await _dio.post<Map<String, dynamic>>('/sessions', data: payload);
-    return res.data ?? <String, dynamic>{};
+    final res = await _dio.post<dynamic>('/sessions', data: payload);
+    return _asJsonMap(res.data);
   }
 
   Future<List<Map<String, dynamic>>> listSessions() async {
@@ -96,28 +97,45 @@ class AiApiClient {
     String sessionId, {
     String? before,
   }) async {
-    final res = await _dio.get<Map<String, dynamic>>(
+    final res = await _dio.get<dynamic>(
       '/sessions/$sessionId/messages',
       queryParameters: {
         if (before != null && before.trim().isNotEmpty) 'before': before.trim(),
       },
     );
-    return res.data ?? <String, dynamic>{};
+    final data = res.data;
+    // Many RAG backends return a bare JSON array of messages; Dio must not cast it to Map.
+    if (data is List) {
+      return <String, dynamic>{'items': data};
+    }
+    return _asJsonMap(data);
   }
 
   Future<Map<String, dynamic>> sendMessage(
     String sessionId, {
     required String message,
+    String? vehicleId,
   }) async {
-    final res = await _dio.post<Map<String, dynamic>>(
+    final payload = <String, dynamic>{'message': message};
+    final v = vehicleId?.trim();
+    if (v != null && v.isNotEmpty) {
+      payload['vehicle_id'] = v;
+    }
+    final res = await _dio.post<dynamic>(
       '/sessions/$sessionId/messages',
-      data: {'message': message},
+      data: payload,
     );
-    return res.data ?? <String, dynamic>{};
+    return _asJsonMap(res.data);
   }
 
   Future<void> deleteSession(String sessionId) async {
     await _dio.delete('/sessions/$sessionId');
+  }
+
+  static Map<String, dynamic> _asJsonMap(dynamic data) {
+    if (data == null) return <String, dynamic>{};
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return <String, dynamic>{};
   }
 
   bool _looksLikeJwt(String token) {

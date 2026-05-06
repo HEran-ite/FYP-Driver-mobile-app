@@ -330,12 +330,28 @@ class _CommunityFeedPageState extends State<CommunityFeedPage> {
                     items: const [
                       DropdownMenuItem(value: 'SPAM', child: Text('Spam')),
                       DropdownMenuItem(
-                        value: 'ABUSE',
-                        child: Text('Abusive content'),
+                        value: 'HARASSMENT',
+                        child: Text('Harassment'),
                       ),
                       DropdownMenuItem(
-                        value: 'MISLEADING',
-                        child: Text('Misleading information'),
+                        value: 'HATE_SPEECH',
+                        child: Text('Hate speech'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'FALSE_INFORMATION',
+                        child: Text('False information'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'VIOLENCE',
+                        child: Text('Violence'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'NUDITY_OR_SEXUAL_CONTENT',
+                        child: Text('Nudity or sexual content'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'SCAM_OR_FRAUD',
+                        child: Text('Scam or fraud'),
                       ),
                       DropdownMenuItem(value: 'OTHER', child: Text('Other')),
                     ],

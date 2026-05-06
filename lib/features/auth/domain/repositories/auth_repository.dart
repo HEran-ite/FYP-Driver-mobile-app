@@ -10,6 +10,7 @@ abstract class AuthRepository {
     required String email,
     required String phone,
     required String password,
+    String? firebaseIdToken,
   });
   Future<void> logout();
   Future<String?> getToken();

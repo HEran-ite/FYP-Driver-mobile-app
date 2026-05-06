@@ -3,6 +3,7 @@ library;
 import 'dart:convert';
 
 import '../../../../core/auth/jwt_expiry.dart';
+import '../../../ai/data/datasources/ai_chat_local_cache.dart';
 import '../../domain/entities/driver_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
@@ -13,17 +14,21 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({
     required AuthRemoteDataSource remote,
     required AuthLocalDataSource local,
+    AiChatLocalCache? aiChatLocalCache,
   })  : _remote = remote,
-        _local = local;
+        _local = local,
+        _aiChatLocalCache = aiChatLocalCache;
 
   final AuthRemoteDataSource _remote;
   final AuthLocalDataSource _local;
+  final AiChatLocalCache? _aiChatLocalCache;
 
   @override
   Future<AuthResult> login({
     required String phone,
     required String password,
   }) async {
+    await _aiChatLocalCache?.clear();
     final response = await _remote.login(phone: phone, password: password);
     await _local.saveToken(response.token);
     final userJson = _userToJson(response.driver);
@@ -38,7 +43,22 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String phone,
     required String password,
+    String? firebaseIdToken,
   }) async {
+    final firebaseToken = firebaseIdToken?.trim();
+    if (firebaseToken != null && firebaseToken.isNotEmpty) {
+      await _aiChatLocalCache?.clear();
+      final result = await _remote.signupWithFirebase(
+        idToken: firebaseToken,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        password: password,
+      );
+      await _local.saveToken(result.token);
+      await _local.saveUser(_userToJson(result.driver));
+      return result.driver.toEntity();
+    }
     await _remote.signup(
       firstName: firstName,
       lastName: lastName,
@@ -56,6 +76,7 @@ class AuthRepositoryImpl implements AuthRepository {
       await _remote.logout();
     } catch (_) {}
     await _local.clear();
+    await _aiChatLocalCache?.clear();
   }
 
   @override

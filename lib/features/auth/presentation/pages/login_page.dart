@@ -207,27 +207,26 @@ class _LoginPageState extends State<LoginPage> {
 class _LogoSection extends StatelessWidget {
   const _LogoSection();
 
+  static const String _logoAsset = 'assets/images/app_logo.png';
+  static const double _logoAspectRatio = 1024 / 682;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: Dimensions.logoSize,
-      height: Dimensions.logoSize,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(BorderRadiusValues.xxl),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+    return Center(
+      child: Container(
+        width: Dimensions.logoSize * 2,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.surfaceMuted),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+        child: AspectRatio(
+          aspectRatio: _logoAspectRatio,
+          child: Image.asset(
+            _logoAsset,
+            fit: BoxFit.contain,
           ),
-        ],
-      ),
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.directions_car_rounded,
-        size: 56,
-        color: AppColors.secondary,
+        ),
       ),
     );
   }
