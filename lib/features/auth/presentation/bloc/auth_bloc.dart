@@ -76,6 +76,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         phone: event.phone,
         password: event.password,
+        firebaseIdToken: event.firebaseIdToken,
       );
       emit(AuthAuthenticated(user));
     } catch (e) {
@@ -108,18 +109,77 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   String _message(dynamic e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      if (code == 429) {
+        return 'Too many login attempts. Wait a few minutes and try again.';
+      }
+      final server = _serverMessage(e.response?.data);
+      if (server != null && server.isNotEmpty) {
+        return _sanitizeUserFacingAuth(server);
+      }
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return 'Network error. Check your connection.';
+      }
+    }
     if (e is Exception) {
       final s = e.toString();
-      if (e is DioException) {
-        final data = e.response?.data;
-        if (data is Map && data['error'] != null) return data['error'].toString();
-      }
       if (s.contains('Invalid credentials')) return 'Invalid phone or password.';
       if (s.contains('Email already registered')) return 'Email already registered.';
       if (s.contains('SocketException') || s.contains('Connection')) {
         return 'Network error. Check your connection.';
       }
+      final pemMsg = _friendlyMessageIfFirebaseKeyConfigError(s);
+      if (pemMsg != null) return pemMsg;
     }
     return 'Something went wrong. Please try again.';
+  }
+
+  /// Hides PEM/private-key server misconfiguration from snackbars (fix backend env).
+  static String _sanitizeUserFacingAuth(String raw) {
+    final t = raw.trim();
+    if (t.isEmpty) return 'Something went wrong. Please try again.';
+    return _friendlyMessageIfFirebaseKeyConfigError(t) ?? t;
+  }
+
+  static String? _friendlyMessageIfFirebaseKeyConfigError(String raw) {
+    final l = raw.toLowerCase();
+    if (l.contains('failed to parse private key') ||
+        l.contains('invalid pem') ||
+        (l.contains('private key') && l.contains('pem'))) {
+      return 'Sign-up is temporarily unavailable. Please try again later.';
+    }
+    return null;
+  }
+
+  /// Parses common backend JSON shapes: `{ message }`, `{ error }`, `{ errors: [...] }`.
+  static String? _serverMessage(dynamic data) {
+    if (data == null) return null;
+    if (data is String && data.trim().isNotEmpty) return data.trim();
+    if (data is Map) {
+      final map = Map<String, dynamic>.from(data);
+      for (final key in ['message', 'error', 'detail']) {
+        final v = map[key];
+        if (v is String && v.trim().isNotEmpty) return v.trim();
+      }
+      final errors = map['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        final parts = <String>[];
+        for (final item in errors) {
+          if (item is String && item.trim().isNotEmpty) {
+            parts.add(item.trim());
+          } else if (item is Map) {
+            final m = Map<String, dynamic>.from(item);
+            final msg = m['message'] ?? m['msg'];
+            if (msg is String && msg.trim().isNotEmpty) parts.add(msg.trim());
+          }
+        }
+        if (parts.isNotEmpty) return parts.join(' ');
+      }
+    }
+    return null;
   }
 }

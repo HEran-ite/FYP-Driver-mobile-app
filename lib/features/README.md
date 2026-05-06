@@ -1,48 +1,24 @@
-# Features Module
+# Features folder
 
-This directory contains all feature modules following Clean Architecture principles.
+Each subfolder is one **area** of the app. Inside you usually find:
 
-## Structure
+- `presentation/` — pages, BLoC, widgets  
+- `domain/` — entities, use cases, repository **interfaces**  
+- `data/` — API models, repository **implementations**  
 
-Each feature follows this structure:
+## Current modules (examples)
 
-```
-feature_name/
-├── presentation/          # UI Layer
-│   ├── pages/           # Screen widgets
-│   ├── widgets/          # Feature-specific reusable widgets
-│   └── bloc/            # BLoC for state management
-│
-├── domain/              # Business Logic Layer
-│   ├── entities/        # Business objects
-│   ├── repositories/    # Repository interfaces
-│   └── usecases/        # Business logic use cases
-│
-└── data/                # Data Layer
-    ├── models/          # Data transfer objects
-    ├── datasources/    # Remote/local data sources
-    └── repositories/   # Repository implementations
-```
+- `auth` — sign in, sign up, profile  
+- `vehicles` — cars list / detail / add  
+- `maintenance` — reminders and history  
+- `appointments` — booking  
+- `services` — find garages / services  
+- `ai` — assistant chat  
+- `education` — articles  
+- `community` — feed  
+- `notifications` — alerts  
+- `dashboard` — home  
+- `maps` — map-related helpers  
+- `onboarding` — first launch  
 
-## Features
-
-1. **auth** - Authentication (Driver, Garage, Admin)
-2. **vehicle** - Vehicle registration and management
-3. **maintenance** - Maintenance tracking and reminders
-4. **ai_assistant** - AI chatbot functionality
-5. **services** - Service locator, appointments, emergency support
-6. **education** - Educational content viewing
-7. **community** - Community posts, comments, bookmarks
-8. **notifications** - Push and in-app notifications
-9. **profile** - User profile management
-10. **settings** - Application settings
-11. **dashboard** - Home dashboard
-
-## Development Guidelines
-
-- Each feature should be self-contained
-- Features communicate through use cases and repositories
-- No direct dependencies between features
-- Use dependency injection for all dependencies
-- Follow BLoC pattern for state management
-
+Keep features from depending on each other’s UI. Share behavior through `core` or clear APIs.

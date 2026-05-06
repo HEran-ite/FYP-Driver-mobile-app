@@ -18,8 +18,10 @@ class DriverResponse {
   final String phone;
 
   factory DriverResponse.fromJson(Map<String, dynamic> json) {
+    final idRaw = json['id'] ?? json['_id'];
+    final id = idRaw == null ? '' : idRaw.toString();
     return DriverResponse(
-      id: json['id'] as String,
+      id: id,
       firstName: json['firstName'] as String? ?? '',
       lastName: json['lastName'] as String? ?? '',
       email: json['email'] as String? ?? '',

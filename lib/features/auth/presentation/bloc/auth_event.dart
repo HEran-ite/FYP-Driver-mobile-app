@@ -29,14 +29,23 @@ class SignupRequested extends AuthEvent {
     required this.email,
     required this.phone,
     required this.password,
+    this.firebaseIdToken,
   });
   final String firstName;
   final String lastName;
   final String email;
   final String phone;
   final String password;
+  final String? firebaseIdToken;
   @override
-  List<Object?> get props => [firstName, lastName, email, phone, password];
+  List<Object?> get props => [
+    firstName,
+    lastName,
+    email,
+    phone,
+    password,
+    firebaseIdToken,
+  ];
 }
 
 class LogoutRequested extends AuthEvent {

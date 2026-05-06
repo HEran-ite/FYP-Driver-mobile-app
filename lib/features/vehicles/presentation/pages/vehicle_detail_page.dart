@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/dimensions.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../injection/service_locator.dart';
@@ -134,6 +135,25 @@ class _VehicleDetailView extends StatelessWidget {
                 _ImagePlaceholder(),
                 const SizedBox(height: Spacing.lg),
                 _OverallHealthCard(vehicleId: vehicle.id),
+                const SizedBox(height: Spacing.md),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pushNamed(
+                        RouteNames.aiChat,
+                        arguments: {'vehicleId': vehicle.id},
+                      );
+                    },
+                    icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                    label: const Text('Ask AI assistant'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.secondary,
+                      side: const BorderSide(color: AppColors.secondary),
+                      padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: Spacing.lg),
                 _VehicleInformationCard(vehicle: vehicle),
                 const SizedBox(height: Spacing.lg),

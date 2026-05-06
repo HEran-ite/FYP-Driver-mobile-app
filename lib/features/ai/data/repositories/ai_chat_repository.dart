@@ -45,8 +45,13 @@ class AiChatRepository {
   Future<AiSendMessageResult> sendMessage(
     String sessionId, {
     required String message,
+    String? vehicleId,
   }) async {
-    final json = await _api.sendMessage(sessionId, message: message);
+    final json = await _api.sendMessage(
+      sessionId,
+      message: message,
+      vehicleId: vehicleId,
+    );
 
     AiSessionModel? session;
     final s = json['session'];

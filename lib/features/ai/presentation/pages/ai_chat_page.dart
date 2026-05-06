@@ -2,6 +2,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
@@ -18,9 +19,14 @@ import '../../../vehicles/presentation/bloc/vehicles_event.dart';
 import '../../../vehicles/presentation/bloc/vehicles_state.dart';
 
 class AiChatPage extends StatelessWidget {
-  const AiChatPage({super.key, this.initialSessionId});
+  const AiChatPage({
+    super.key,
+    this.initialSessionId,
+    this.initialVehicleId,
+  });
 
   final String? initialSessionId;
+  final String? initialVehicleId;
 
   @override
   Widget build(BuildContext context) {
@@ -37,16 +43,19 @@ class AiChatPage extends StatelessWidget {
           },
         ),
         BlocProvider(
-          create: (_) => getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
+          create: (_) =>
+              getIt<VehiclesBloc>()..add(const VehiclesLoadRequested()),
         ),
       ],
-      child: const _AiChatView(),
+      child: _AiChatView(initialVehicleId: initialVehicleId),
     );
   }
 }
 
 class _AiChatView extends StatefulWidget {
-  const _AiChatView();
+  const _AiChatView({this.initialVehicleId});
+
+  final String? initialVehicleId;
 
   @override
   State<_AiChatView> createState() => _AiChatViewState();
@@ -136,13 +145,18 @@ class _AiChatViewState extends State<_AiChatView> {
     return '$base • $y-$m-$d';
   }
 
-  Future<void> _pickVehicle(BuildContext context, List<Vehicle> vehicles) async {
+  Future<void> _pickVehicle(
+    BuildContext context,
+    List<Vehicle> vehicles,
+  ) async {
     final currentId = _selectedVehicleId ?? vehicles.first.id;
     final picked = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(BorderRadiusValues.xl)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(BorderRadiusValues.xl),
+        ),
       ),
       builder: (ctx) {
         return SafeArea(
@@ -164,7 +178,9 @@ class _AiChatViewState extends State<_AiChatView> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(
-                      v.id == currentId ? Icons.radio_button_checked : Icons.radio_button_off,
+                      v.id == currentId
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_off,
                       color: AppColors.secondary,
                     ),
                     title: Text(v.displayName),
@@ -185,24 +201,33 @@ class _AiChatViewState extends State<_AiChatView> {
   Widget build(BuildContext context) {
     return BlocConsumer<AiChatBloc, AiChatState>(
       listenWhen: (prev, curr) =>
-          prev.messages.length != curr.messages.length || prev.error != curr.error,
+          prev.messages.length != curr.messages.length ||
+          prev.error != curr.error,
       listener: (context, state) {
         if (state.messages.isNotEmpty) {
           _scrollToBottom();
         }
         final err = state.error?.trim();
         if (err != null && err.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(err)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(err)));
         }
       },
       builder: (context, state) {
         final vehiclesState = context.watch<VehiclesBloc>().state;
-        final vehicles =
-            vehiclesState is VehiclesLoaded ? vehiclesState.vehicles : const <Vehicle>[];
+        final vehicles = vehiclesState is VehiclesLoaded
+            ? vehiclesState.vehicles
+            : const <Vehicle>[];
         if (_selectedVehicleId == null && vehicles.isNotEmpty) {
-          _selectedVehicleId = vehicles.first.id;
+          final pref = widget.initialVehicleId?.trim();
+          if (pref != null &&
+              pref.isNotEmpty &&
+              vehicles.any((v) => v.id == pref)) {
+            _selectedVehicleId = pref;
+          } else {
+            _selectedVehicleId = vehicles.first.id;
+          }
         }
         final selectedVehicle = _currentSelectedVehicle(context);
         return Scaffold(
@@ -218,7 +243,9 @@ class _AiChatViewState extends State<_AiChatView> {
                 if (selectedVehicle != null)
                   Text(
                     selectedVehicle.displayName,
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
               ],
             ),
@@ -260,14 +287,18 @@ class _AiChatViewState extends State<_AiChatView> {
                           if (n.metrics.pixels <= 60 &&
                               state.hasMore &&
                               !state.loadingOlder) {
-                            context.read<AiChatBloc>().add(const AiOlderMessagesRequested());
+                            context.read<AiChatBloc>().add(
+                              const AiOlderMessagesRequested(),
+                            );
                           }
                           return false;
                         },
                         child: ListView.builder(
                           controller: _scrollController,
                           padding: const EdgeInsets.all(Spacing.md),
-                          itemCount: state.messages.isEmpty ? 1 : state.messages.length,
+                          itemCount: state.messages.isEmpty
+                              ? 1
+                              : state.messages.length,
                           itemBuilder: (context, index) {
                             if (state.messages.isEmpty) {
                               return _WelcomeBubble(
@@ -315,13 +346,17 @@ class _AiChatViewState extends State<_AiChatView> {
                               borderRadius: BorderRadius.circular(
                                 BorderRadiusValues.lg,
                               ),
-                              borderSide: const BorderSide(color: AppColors.border),
+                              borderSide: const BorderSide(
+                                color: AppColors.border,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(
                                 BorderRadiusValues.lg,
                               ),
-                              borderSide: const BorderSide(color: AppColors.border),
+                              borderSide: const BorderSide(
+                                color: AppColors.border,
+                              ),
                             ),
                           ),
                         ),
@@ -333,7 +368,9 @@ class _AiChatViewState extends State<_AiChatView> {
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
+                              borderRadius: BorderRadius.circular(
+                                BorderRadiusValues.lg,
+                              ),
                             ),
                             padding: EdgeInsets.zero,
                           ),
@@ -342,7 +379,9 @@ class _AiChatViewState extends State<_AiChatView> {
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.send_rounded),
                         ),
@@ -357,6 +396,22 @@ class _AiChatViewState extends State<_AiChatView> {
       },
     );
   }
+}
+
+/// Makes plain AI replies readable as Markdown: breaks inline "1. … 2. …" into blocks.
+String _assistantMarkdownData(String raw) {
+  var t = raw.replaceAll('\r\n', '\n').trim();
+  if (t.isEmpty) return t;
+  // Convert inline "1. ... 2. ..." into proper numbered list lines.
+  t = t.replaceAllMapped(RegExp(r'(?<=[^\n])\s+(?=\d+\.\s)'), (_) => '\n');
+  // Convert inline "- ..." blocks into real markdown bullet lines.
+  t = t.replaceAllMapped(RegExp(r':\s*-\s+'), (_) => ':\n- ');
+  t = t.replaceAllMapped(RegExp(r'(?<=[^\n])\s+-\s+'), (_) => '\n- ');
+  // If model returns one huge paragraph, split by sentence for easier scanning.
+  if (!t.contains('\n') && t.length > 220) {
+    t = t.replaceAllMapped(RegExp(r'(?<=[.!?])\s+(?=[A-Z])'), (_) => '\n');
+  }
+  return t;
 }
 
 class _WelcomeBubble extends StatelessWidget {
@@ -376,13 +431,47 @@ class _WelcomeBubble extends StatelessWidget {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
         ),
-        child: Text(
-          text,
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+        child: MarkdownBody(
+          data: _assistantMarkdownData(text),
+          selectable: true,
+          styleSheet: _markdownStyleSheet(
+            context,
+            AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+          ),
         ),
       ),
     );
   }
+}
+
+MarkdownStyleSheet _markdownStyleSheet(BuildContext context, TextStyle base) {
+  final theme = Theme.of(context);
+  return MarkdownStyleSheet.fromTheme(theme).copyWith(
+    p: base.copyWith(height: 1.45),
+    pPadding: const EdgeInsets.only(bottom: Spacing.sm),
+    h1: base.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
+    h2: base.copyWith(fontSize: 17, fontWeight: FontWeight.w700),
+    h3: base.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+    listBullet: base,
+    listIndent: Spacing.md + Spacing.xs,
+    blockSpacing: Spacing.sm,
+    code: base.copyWith(
+      fontFamily: 'monospace',
+      fontSize: (base.fontSize ?? 14) * 0.92,
+      backgroundColor: AppColors.surfaceMuted.withValues(alpha: 0.6),
+    ),
+    codeblockDecoration: BoxDecoration(
+      color: AppColors.surfaceMuted.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(BorderRadiusValues.sm),
+    ),
+    codeblockPadding: const EdgeInsets.all(Spacing.sm),
+    a: base.copyWith(
+      color: AppColors.primary,
+      decoration: TextDecoration.underline,
+    ),
+    strong: base.copyWith(fontWeight: FontWeight.w700),
+    em: base.copyWith(fontStyle: FontStyle.italic),
+  );
 }
 
 class _MessageBubble extends StatelessWidget {
@@ -395,21 +484,63 @@ class _MessageBubble extends StatelessWidget {
     final user = message.isUser;
     final bg = user ? AppColors.secondary : AppColors.surface;
     final fg = user ? AppColors.textOnPrimary : AppColors.textPrimary;
+    final baseStyle = AppTextStyles.bodyMedium.copyWith(color: fg);
+    final assistantLabelStyle = AppTextStyles.labelSmall.copyWith(
+      color: AppColors.textSecondary,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.2,
+    );
     return Align(
       alignment: user ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: Spacing.xs),
-        padding: const EdgeInsets.all(Spacing.md),
+        padding: EdgeInsets.fromLTRB(
+          Spacing.md,
+          user ? Spacing.md : Spacing.sm,
+          Spacing.md,
+          Spacing.md,
+        ),
         constraints: const BoxConstraints(maxWidth: 340),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(BorderRadiusValues.lg),
           border: user ? null : Border.all(color: AppColors.border),
         ),
-        child: Text(
-          message.content,
-          style: AppTextStyles.bodyMedium.copyWith(color: fg),
-        ),
+        child: user
+            ? Text(message.content, style: baseStyle)
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(
+                            BorderRadiusValues.circular,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: Spacing.xs),
+                      Text('AI Assistant', style: assistantLabelStyle),
+                    ],
+                  ),
+                  const SizedBox(height: Spacing.sm),
+                  MarkdownBody(
+                    data: _assistantMarkdownData(message.content),
+                    selectable: true,
+                    styleSheet: _markdownStyleSheet(context, baseStyle),
+                  ),
+                ],
+              ),
       ),
     );
   }

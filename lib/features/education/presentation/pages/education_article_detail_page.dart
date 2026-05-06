@@ -165,7 +165,9 @@ class _EducationArticleDetailPageState extends State<EducationArticleDetailPage>
     if (article.category != EducationCategory.manuals) return null;
 
     final fromManual = article.manualUrl?.trim();
-    if (fromManual != null && _looksLikeUrl(fromManual)) return fromManual;
+    if (fromManual != null && fromManual.isNotEmpty) {
+      return fromManual;
+    }
 
     final fromImage = article.imageUrl?.trim();
     if (fromImage != null && _isPdfUrl(fromImage)) return fromImage;
@@ -185,16 +187,9 @@ class _EducationArticleDetailPageState extends State<EducationArticleDetailPage>
     return hasHttp && lower.contains('.pdf');
   }
 
-  bool _looksLikeUrl(String value) {
-    final uri = Uri.tryParse(value);
-    return uri != null && uri.hasScheme;
-  }
-
   Future<void> _openPdf(BuildContext context, String url) async {
     final messenger = ScaffoldMessenger.of(context);
-    final cleaned = url.trim();
-    final encoded = Uri.encodeFull(cleaned);
-    final uri = Uri.tryParse(encoded);
+    final uri = _safeManualUri(url);
     if (uri == null) {
       messenger.showSnackBar(
         const SnackBar(
@@ -204,14 +199,19 @@ class _EducationArticleDetailPageState extends State<EducationArticleDetailPage>
       );
       return;
     }
-    final openedExternal = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (openedExternal) return;
-
-    final openedBrowser = await launchUrl(uri, mode: LaunchMode.platformDefault);
-    if (openedBrowser) return;
+    // Do not gate on [canLaunchUrl] — on Android it often returns false for valid https URLs,
+    // which prevented opening manuals at all.
+    final launchModes = <LaunchMode>[
+      LaunchMode.externalApplication,
+      LaunchMode.platformDefault,
+      LaunchMode.inAppBrowserView,
+    ];
+    for (final mode in launchModes) {
+      try {
+        final opened = await launchUrl(uri, mode: mode);
+        if (opened) return;
+      } catch (_) {}
+    }
 
     try {
       final filename = uri.pathSegments.isNotEmpty
@@ -226,29 +226,47 @@ class _EducationArticleDetailPageState extends State<EducationArticleDetailPage>
       await getIt<ApiClient>().dio.download(uri.toString(), localPath);
       final result = await OpenFilex.open(localPath);
       if (result.type == ResultType.done) return;
-    } catch (_) {
-      // Final fallback dialog below.
-    }
+    } catch (_) {}
 
     if (context.mounted) {
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Open Manual'),
-          content: SelectableText(
-            uri.toString(),
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textPrimary,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Close'),
-            ),
-          ],
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not open this manual.'),
+          backgroundColor: AppColors.danger,
         ),
       );
     }
+  }
+
+  Uri? _safeManualUri(String raw) {
+    final cleaned = raw.trim();
+    if (cleaned.isEmpty) return null;
+
+    // Handle host/path strings without scheme (e.g. driver-garage.../uploads/a.pdf).
+    final hostLike = RegExp(
+      r'^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(?::\d+)?(?:/.*)?$',
+      caseSensitive: false,
+    );
+    if (hostLike.hasMatch(cleaned) && !cleaned.startsWith('/')) {
+      final withScheme = Uri.tryParse('https://$cleaned');
+      if (withScheme != null) return withScheme;
+    }
+
+    Uri? uri = Uri.tryParse(cleaned);
+    uri ??= Uri.tryParse(Uri.encodeFull(cleaned));
+    if (uri == null) return null;
+
+    // Handle protocol-relative URLs (`//host/path`).
+    if (!uri.hasScheme && cleaned.startsWith('//')) {
+      return Uri.tryParse('https:$cleaned');
+    }
+
+    // Handle backend relative paths safely.
+    if (!uri.hasScheme) {
+      final base = Uri.parse(getIt<ApiClient>().dio.options.baseUrl);
+      final path = cleaned.startsWith('/') ? cleaned : '/$cleaned';
+      return base.replace(path: path);
+    }
+    return uri;
   }
 }

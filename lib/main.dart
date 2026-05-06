@@ -159,8 +159,9 @@ class _AuthSessionShellState extends State<_AuthSessionShell>
         title: 'Driver Assistance',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
+        // Force light theme until we implement a proper dark theme.
+        darkTheme: AppTheme.lightTheme,
+        themeMode: ThemeMode.light,
         home: const _RootLandingPage(),
         routes: {
           '/login': (context) => const LoginPage(),
@@ -255,13 +256,19 @@ class _AuthSessionShellState extends State<_AuthSessionShell>
           '/ai-chat': (context) {
             final args = ModalRoute.of(context)?.settings.arguments;
             String? sessionId;
+            String? vehicleId;
             if (args is String) {
               sessionId = args;
             } else if (args is Map) {
               final sid = args['sessionId'];
               if (sid != null) sessionId = sid.toString();
+              final vid = args['vehicleId'];
+              if (vid != null) vehicleId = vid.toString();
             }
-            return AiChatPage(initialSessionId: sessionId);
+            return AiChatPage(
+              initialSessionId: sessionId,
+              initialVehicleId: vehicleId,
+            );
           },
           '/ai-chat/history': (context) => const AiChatHistoryPage(),
         },

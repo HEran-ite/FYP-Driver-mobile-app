@@ -9,6 +9,7 @@ class ApiEndpoints {
   // ----- Driver Auth (prefix: /drivers/auth) -----
   static const String driverAuthSignup = '/drivers/auth/signup';
   static const String driverAuthLogin = '/drivers/auth/login';
+  static const String driverAuthFirebase = '/drivers/auth/firebase';
   static const String driverAuthLogout = '/drivers/auth/logout';
 
   // ----- Driver Appointments (prefix: /drivers/appointments) -----
