@@ -11,6 +11,13 @@ abstract class AuthRemoteDataSource {
     required String phone,
     required String password,
   });
+  Future<LoginResponse> signupWithFirebase({
+    required String idToken,
+    required String firstName,
+    required String lastName,
+    required String email,
+    String? password,
+  });
   Future<void> logout();
 
   Future<DriverResponse> getProfile();

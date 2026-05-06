@@ -3,6 +3,7 @@ library;
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/datasources/ai_chat_local_cache.dart';
 import '../../data/models/ai_message_model.dart';
 import '../../data/models/ai_session_model.dart';
 import '../../data/repositories/ai_chat_repository.dart';
@@ -10,7 +11,7 @@ import 'ai_chat_event.dart';
 import 'ai_chat_state.dart';
 
 class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
-  AiChatBloc(this._repo) : super(const AiChatState()) {
+  AiChatBloc(this._repo, this._cache) : super(const AiChatState()) {
     on<AiSessionsRequested>(_onSessionsRequested);
     on<AiSessionSelected>(_onSessionSelected);
     on<AiStartSessionRequested>(_onStartSessionRequested);
@@ -21,13 +22,46 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
   }
 
   final AiChatRepository _repo;
-  
+  final AiChatLocalCache _cache;
+
+  static const _offlineSavedBanner =
+      'Showing saved chats. Connect to refresh.';
+
+  Future<void> _persist(Future<void> Function() fn) async {
+    try {
+      await fn();
+    } catch (_) {}
+  }
+
+  bool _isUnreachable(Object e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      if (code == 401 || code == 403) return false;
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return true;
+      }
+    }
+    final s = e.toString();
+    return s.contains('SocketException') ||
+        s.contains('Failed host lookup') ||
+        s.contains('Network is unreachable');
+  }
+
   String _message(Object e) {
     if (e is DioException) {
       final code = e.response?.statusCode;
       final data = e.response?.data;
       if (code == 401 || code == 403) {
-        return 'AI service unauthorized. Please login again.';
+        return 'AI service unauthorized. Use AI_AUTH_BEARER_TOKEN in .env if the AI API expects a different token than your app login, or sign in again.';
+      }
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return 'AI server unreachable or timed out. If the service sleeps when idle, retry after ~30–60s.';
       }
       if (data is Map && data['error'] != null) {
         return data['error'].toString();
@@ -53,19 +87,37 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
           (state.currentSessionId == null || state.currentSessionId!.isEmpty) &&
           sessions.isNotEmpty;
       final latestSessionId = shouldAutoSelectLatest ? sessions.first.id : null;
-      emit(state.copyWith(
-        sessions: sessions,
-        currentSessionId: latestSessionId,
-        sessionsLoading: false,
-      ));
+      emit(
+        state.copyWith(
+          sessions: sessions,
+          currentSessionId: latestSessionId,
+          sessionsLoading: false,
+        ),
+      );
       if (latestSessionId != null) {
         add(AiMessagesRequested(sessionId: latestSessionId, refresh: true));
       }
+      final nextSid = latestSessionId ?? state.currentSessionId;
+      await _persist(() => _cache.upsertSessions(sessions, nextSid));
     } catch (e) {
-      emit(state.copyWith(
-        sessionsLoading: false,
-        error: _message(e),
-      ));
+      if (_isUnreachable(e)) {
+        final snap = await _cache.loadRestoreSnapshot();
+        if (snap != null && snap.sessions.isNotEmpty) {
+          emit(
+            state.copyWith(
+              sessions: snap.sessions,
+              currentSessionId: snap.currentSessionId,
+              messages: snap.messages,
+              hasMore: snap.hasMore,
+              nextBefore: snap.nextBefore,
+              sessionsLoading: false,
+              error: _offlineSavedBanner,
+            ),
+          );
+          return;
+        }
+      }
+      emit(state.copyWith(sessionsLoading: false, error: _message(e)));
     }
   }
 
@@ -101,11 +153,17 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
           clearNextBefore: true,
         ),
       );
+      await _persist(() async {
+        await _cache.upsertSessions(sessions, session.id);
+        await _cache.upsertThread(
+          session.id,
+          const [],
+          hasMore: false,
+          nextBefore: null,
+        );
+      });
     } catch (e) {
-      emit(state.copyWith(
-        messagesLoading: false,
-        error: _message(e),
-      ));
+      emit(state.copyWith(messagesLoading: false, error: _message(e)));
     }
   }
 
@@ -114,29 +172,61 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
     Emitter<AiChatState> emit,
   ) async {
     if (event.refresh) {
-      emit(state.copyWith(
-        currentSessionId: event.sessionId,
-        messagesLoading: true,
-        clearError: true,
-      ));
+      emit(
+        state.copyWith(
+          currentSessionId: event.sessionId,
+          messagesLoading: true,
+          clearError: true,
+        ),
+      );
     }
     try {
       final page = await _repo.getMessages(event.sessionId);
       final items = _normalizeChronological(page.items);
-      emit(state.copyWith(
-        currentSessionId: event.sessionId,
-        messages: items,
-        hasMore: page.hasMore,
-        nextBefore: page.nextBefore,
-        messagesLoading: false,
-        loadingOlder: false,
-      ));
+      emit(
+        state.copyWith(
+          currentSessionId: event.sessionId,
+          messages: items,
+          hasMore: page.hasMore,
+          nextBefore: page.nextBefore,
+          messagesLoading: false,
+          loadingOlder: false,
+        ),
+      );
+      await _persist(() async {
+        await _cache.upsertThread(
+          event.sessionId,
+          items,
+          hasMore: page.hasMore,
+          nextBefore: page.nextBefore,
+        );
+        await _cache.upsertSessions(state.sessions, event.sessionId);
+      });
     } catch (e) {
-      emit(state.copyWith(
-        messagesLoading: false,
-        loadingOlder: false,
-        error: _message(e),
-      ));
+      if (_isUnreachable(e)) {
+        final thread = await _cache.loadThread(event.sessionId);
+        if (thread != null && thread.messages.isNotEmpty) {
+          emit(
+            state.copyWith(
+              currentSessionId: event.sessionId,
+              messages: thread.messages,
+              hasMore: thread.hasMore,
+              nextBefore: thread.nextBefore,
+              messagesLoading: false,
+              loadingOlder: false,
+              error: _offlineSavedBanner,
+            ),
+          );
+          return;
+        }
+      }
+      emit(
+        state.copyWith(
+          messagesLoading: false,
+          loadingOlder: false,
+          error: _message(e),
+        ),
+      );
     }
   }
 
@@ -146,7 +236,12 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
   ) async {
     final sid = state.currentSessionId;
     final before = state.nextBefore;
-    if (sid == null || sid.isEmpty || !state.hasMore || state.loadingOlder) return;
+    if (sid == null ||
+        sid.isEmpty ||
+        !state.hasMore ||
+        state.loadingOlder) {
+      return;
+    }
     emit(state.copyWith(loadingOlder: true, clearError: true));
     try {
       final page = await _repo.getMessages(sid, before: before);
@@ -154,17 +249,26 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
         ..._normalizeChronological(page.items),
         ...state.messages,
       ];
-      emit(state.copyWith(
-        messages: _dedupeMessages(combined),
-        hasMore: page.hasMore,
-        nextBefore: page.nextBefore,
-        loadingOlder: false,
-      ));
+      final deduped = _dedupeMessages(combined);
+      emit(
+        state.copyWith(
+          messages: deduped,
+          hasMore: page.hasMore,
+          nextBefore: page.nextBefore,
+          loadingOlder: false,
+        ),
+      );
+      await _persist(() async {
+        await _cache.upsertThread(
+          sid,
+          deduped,
+          hasMore: page.hasMore,
+          nextBefore: page.nextBefore,
+        );
+        await _cache.upsertSessions(state.sessions, sid);
+      });
     } catch (e) {
-      emit(state.copyWith(
-        loadingOlder: false,
-        error: _message(e),
-      ));
+      emit(state.copyWith(loadingOlder: false, error: _message(e)));
     }
   }
 
@@ -188,23 +292,23 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
           s,
           ...state.sessions.where((x) => x.id != s.id),
         ];
-        emit(state.copyWith(
-          sessions: sessions,
-          currentSessionId: sid,
-          messagesLoading: false,
-        ));
+        emit(
+          state.copyWith(
+            sessions: sessions,
+            currentSessionId: sid,
+            messagesLoading: false,
+          ),
+        );
       } catch (e) {
-        emit(state.copyWith(
-          messagesLoading: false,
-          error: _message(e),
-        ));
+        emit(state.copyWith(messagesLoading: false, error: _message(e)));
         return;
       }
     }
 
+    final activeSid = sid;
     final optimistic = AiMessageModel(
       id: 'local-user-${DateTime.now().microsecondsSinceEpoch}',
-      sessionId: sid,
+      sessionId: activeSid,
       role: 'user',
       content: text,
       createdAt: DateTime.now(),
@@ -212,15 +316,21 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
 
     final optimisticMessages = [...state.messages, optimistic];
 
-    emit(state.copyWith(
-      currentSessionId: sid,
-      messages: optimisticMessages,
-      sending: true,
-      clearError: true,
-    ));
+    emit(
+      state.copyWith(
+        currentSessionId: activeSid,
+        messages: optimisticMessages,
+        sending: true,
+        clearError: true,
+      ),
+    );
 
     try {
-      final result = await _repo.sendMessage(sid, message: text);
+      final result = await _repo.sendMessage(
+        activeSid,
+        message: text,
+        vehicleId: event.vehicleId,
+      );
       var nextMessages = optimisticMessages;
       final assistant = result.assistantMessage;
       if (assistant != null && assistant.content.trim().isNotEmpty) {
@@ -229,11 +339,11 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
       nextMessages = _dedupeMessages(nextMessages);
 
       final sessions = [...state.sessions];
-      final idx = sessions.indexWhere((s) => s.id == sid);
+      final idx = sessions.indexWhere((s) => s.id == activeSid);
       final base = idx >= 0
           ? sessions[idx]
           : AiSessionModel(
-              id: sid,
+              id: activeSid,
               title: 'Chat Session',
               updatedAt: DateTime.now(),
             );
@@ -246,16 +356,35 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
       }
       sessions.insert(0, updatedSession);
 
-      emit(state.copyWith(
-        sessions: sessions,
-        messages: nextMessages,
-        sending: false,
-      ));
+      emit(
+        state.copyWith(
+          sessions: sessions,
+          messages: nextMessages,
+          sending: false,
+        ),
+      );
+      await _persist(() async {
+        await _cache.upsertSessions(sessions, activeSid);
+        await _cache.upsertThread(
+          activeSid,
+          nextMessages,
+          hasMore: state.hasMore,
+          nextBefore: state.nextBefore,
+        );
+      });
     } catch (e) {
-      emit(state.copyWith(
-        sending: false,
-        error: _message(e),
-      ));
+      if (_isUnreachable(e)) {
+        await _persist(() async {
+          await _cache.upsertSessions(state.sessions, activeSid);
+          await _cache.upsertThread(
+            activeSid,
+            optimisticMessages,
+            hasMore: state.hasMore,
+            nextBefore: state.nextBefore,
+          );
+        });
+      }
+      emit(state.copyWith(sending: false, error: _message(e)));
     }
   }
 
@@ -266,28 +395,30 @@ class AiChatBloc extends Bloc<AiChatEvent, AiChatState> {
     final sid = event.sessionId.trim();
     if (sid.isEmpty || state.deletingSessionId != null) return;
 
-    emit(state.copyWith(
-      deletingSessionId: sid,
-      clearError: true,
-    ));
+    emit(state.copyWith(deletingSessionId: sid, clearError: true));
     try {
       await _repo.deleteSession(sid);
       final nextSessions = state.sessions.where((s) => s.id != sid).toList();
       final deletingCurrent = state.currentSessionId == sid;
-      emit(state.copyWith(
-        sessions: nextSessions,
-        currentSessionId: deletingCurrent ? null : state.currentSessionId,
-        clearCurrentSessionId: deletingCurrent,
-        messages: deletingCurrent ? const [] : state.messages,
-        hasMore: deletingCurrent ? false : state.hasMore,
-        clearNextBefore: deletingCurrent,
-        clearDeletingSessionId: true,
-      ));
+      final cacheCurrentSessionId = deletingCurrent
+          ? (nextSessions.isNotEmpty ? nextSessions.first.id : null)
+          : state.currentSessionId;
+      emit(
+        state.copyWith(
+          sessions: nextSessions,
+          currentSessionId: deletingCurrent ? null : state.currentSessionId,
+          clearCurrentSessionId: deletingCurrent,
+          messages: deletingCurrent ? const [] : state.messages,
+          hasMore: deletingCurrent ? false : state.hasMore,
+          clearNextBefore: deletingCurrent,
+          clearDeletingSessionId: true,
+        ),
+      );
+      await _persist(
+        () => _cache.upsertSessions(nextSessions, cacheCurrentSessionId),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        clearDeletingSessionId: true,
-        error: _message(e),
-      ));
+      emit(state.copyWith(clearDeletingSessionId: true, error: _message(e)));
     }
   }
 

@@ -102,6 +102,7 @@ import '../features/education/application/usecases/search_education_articles_use
 import '../features/education/application/usecases/get_education_article_usecase.dart';
 import '../features/education/presentation/bloc/education_bloc.dart';
 import '../features/ai/data/ai_api_client.dart';
+import '../features/ai/data/datasources/ai_chat_local_cache.dart';
 import '../features/ai/data/repositories/ai_chat_repository.dart';
 import '../features/ai/presentation/bloc/ai_chat_bloc.dart';
 
@@ -140,11 +141,14 @@ Future<void> setupServiceLocator() async {
     () => getIt<AuthRemoteDataSourceImpl>() as AuthRemoteDataSource,
   );
 
+  getIt.registerLazySingleton<AiChatLocalCache>(() => AiChatLocalCache());
+
   // Auth repository
   getIt.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
       remote: getIt<AuthRemoteDataSource>(),
       local: getIt<AuthLocalDataSource>(),
+      aiChatLocalCache: getIt<AiChatLocalCache>(),
     ),
   );
 
@@ -452,6 +456,9 @@ Future<void> setupServiceLocator() async {
     () => AiChatRepository(getIt<AiApiClient>()),
   );
   getIt.registerFactory<AiChatBloc>(
-    () => AiChatBloc(getIt<AiChatRepository>()),
+    () => AiChatBloc(
+      getIt<AiChatRepository>(),
+      getIt<AiChatLocalCache>(),
+    ),
   );
 }

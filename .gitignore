@@ -52,3 +52,5 @@ android/local.properties
 Secrets/
 **/Secrets.xcconfig
 **/ApiKeys.xcconfig
+/ios/Runner/Info.plist
+/android/app/google-services.json

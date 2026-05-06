@@ -1,23 +1,19 @@
-# Core Module
+# Core folder
 
-This directory contains shared functionality used across all features.
+Shared pieces **all features** can use.
 
-## Structure
+## What goes here
 
-- **constants/** - All application constants (fonts, spacing, colors, etc.)
-- **theme/** - Theme configuration and styling
-- **widgets/** - Reusable UI widgets
-- **utils/** - Utility functions and extensions
-- **error/** - Error handling classes
-- **network/** - Network configuration
-- **storage/** - Local storage interfaces
-- **router/** - Routing configuration
+- **constants** — spacing, radius, API URLs  
+- **theme** — colors and text styles  
+- **network** — HTTP client setup  
+- **utils** — small helpers  
 
-## Guidelines
+## What does *not* go here
 
-- **DO NOT** hardcode values - use constants
-- **DO NOT** create feature-specific code here
-- Keep this module generic and reusable
-- All widgets should be documented
-- Follow Flutter best practices
+- Screens that belong to one feature only  
+- Feature-specific BLoCs  
 
+## Rule
+
+Avoid hardcoded colors/sizes in widgets — use `core` theme and constants when you can.
