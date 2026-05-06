@@ -1,0 +1,46 @@
+library;
+
+import '../models/driver_response.dart';
+
+abstract class AuthRemoteDataSource {
+  Future<LoginResponse> login({required String phone, required String password});
+  Future<DriverResponse> signup({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+  });
+  Future<LoginResponse> signupWithFirebase({
+    required String idToken,
+    required String firstName,
+    required String lastName,
+    required String email,
+    String? password,
+  });
+  Future<void> logout();
+
+  Future<DriverResponse> getProfile();
+  Future<DriverResponse> createProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+  });
+  Future<DriverResponse> updateProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+  });
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+}
+
+class LoginResponse {
+  const LoginResponse({required this.token, required this.driver});
+  final String token;
+  final DriverResponse driver;
+}

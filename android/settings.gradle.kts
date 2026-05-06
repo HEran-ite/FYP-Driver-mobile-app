@@ -13,6 +13,13 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
+        // Alternative repositories as fallback
+        maven {
+            url = uri("https://repo1.maven.org/maven2/")
+        }
+        maven {
+            url = uri("https://jcenter.bintray.com/")
+        }
         gradlePluginPortal()
     }
 }
@@ -21,6 +28,7 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.9.1" apply false
     id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    id("com.google.gms.google-services") version "4.4.2" apply false
 }
 
 include(":app")

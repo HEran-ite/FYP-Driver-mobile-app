@@ -1,67 +1,84 @@
-/// API endpoint constants
-/// 
-/// All API endpoint URLs should be defined here.
-/// Base URL should be configured via environment variables.
+/// API endpoint constants aligned with driver-garage-backend.
+/// Base URL should be configured via environment or app constants.
+library;
 
 class ApiEndpoints {
-  // Base URL (should be loaded from environment)
-  static const String baseUrl = 'https://api.example.com/v1';
-  
-  // Authentication
-  static const String login = '/auth/login';
-  static const String signup = '/auth/signup';
-  static const String logout = '/auth/logout';
-  static const String refreshToken = '/auth/refresh';
-  
-  // Profile
+  /// Deployed backend base URL.
+  static const String baseUrl = 'https://driver-garage-backend.onrender.com';
+
+  // ----- Driver Auth (prefix: /drivers/auth) -----
+  static const String driverAuthSignup = '/drivers/auth/signup';
+  static const String driverAuthLogin = '/drivers/auth/login';
+  static const String driverAuthFirebase = '/drivers/auth/firebase';
+  static const String driverAuthLogout = '/drivers/auth/logout';
+
+  // ----- Driver Appointments (prefix: /drivers/appointments) -----
+  static const String driverAppointments = '/drivers/appointments';
+
+  static String driverAppointmentById(String id) => '/drivers/appointments/$id';
+  static String driverAppointmentReschedule(String id) =>
+      '/drivers/appointments/$id/reschedule';
+  static String driverAppointmentCancel(String id) =>
+      '/drivers/appointments/$id/cancel';
+  static String driverAppointmentReview(String id) =>
+      '/drivers/appointments/$id/review';
+
+  // ----- Driver Vehicles (try /driver/vehicles if /drivers/vehicles returns 404) -----
+  static const String driverVehicles = '/driver/vehicles';
+  static String driverVehicleById(String id) => '/driver/vehicles/$id';
+
+  // ----- Driver Profile (prefix: /driver) -----
+  static const String driverProfile = '/driver/profile';
+  static const String driverProfileChangePassword =
+      '/driver/profile/change-password';
+
+  // ----- Driver Community (prefix: /driver/community) -----
+  static const String driverCommunityPosts = '/driver/community/posts';
+
+  // ----- Driver Education (prefix: /driver/education, JWT) -----
+  static const String driverEducation = '/driver/education';
+  static String driverEducationById(String id) => '/driver/education/$id';
+  static const String driverEducationSearch = '/driver/education/search';
+  static const String educationContent = '/education/content';
+  static String educationContentById(String id) => '/education/content/$id';
+
+  // ----- Driver Maintenance (prefix: /driver/maintenance) -----
+  static const String driverMaintenanceCatalog = '/driver/maintenance/catalog';
+  static String driverMaintenanceVehicleHealth(String vehicleId) =>
+      '/driver/maintenance/health/$vehicleId';
+  static const String driverMaintenanceUpcoming =
+      '/driver/maintenance/upcoming';
+  static const String driverMaintenanceHistory = '/driver/maintenance/history';
+  static String driverMaintenanceUpcomingById(String id) =>
+      '/driver/maintenance/upcoming/$id';
+  static String driverMaintenanceHistoryById(String id) =>
+      '/driver/maintenance/history/$id';
+  static String driverMaintenanceUpcomingToggleReminder(String id) =>
+      '/driver/maintenance/upcoming/$id/reminder';
+  static String driverMaintenanceUpcomingMarkDone(String id) =>
+      '/driver/maintenance/upcoming/$id/done';
+  static const String driverMaintenanceNotifications =
+      '/driver/maintenance/notifications';
+  static String driverMaintenanceNotificationRead(String id) =>
+      '/driver/maintenance/notifications/$id/read';
+
+  // ----- Driver Notifications (prefix: /driver/notifications) -----
+  static const String driverNotifications = '/driver/notifications';
+  static String driverNotificationRead(String id) =>
+      '/driver/notifications/$id/read';
+  static const String driverNotificationsReadAll =
+      '/driver/notifications/read-all';
+
+  // ----- Legacy / other (keep for future use) -----
   static const String profile = '/profile';
-  static const String updateProfile = '/profile/update';
-  
-  // Vehicles
-  static const String vehicles = '/vehicles';
-  static const String registerVehicle = '/vehicles/register';
-  static const String updateVehicle = '/vehicles/update';
-  
-  // Maintenance
-  static const String maintenance = '/maintenance';
-  static const String maintenanceHistory = '/maintenance/history';
-  static const String maintenanceReminders = '/maintenance/reminders';
-  
-  // Services
-  static const String services = '/services';
   static const String nearbyServices = '/services/nearby';
-  
-  // Appointments
-  static const String appointments = '/appointments';
-  static const String bookAppointment = '/appointments/book';
-  static const String rescheduleAppointment = '/appointments/reschedule';
-  static const String cancelAppointment = '/appointments/cancel';
-  
-  // Emergency
-  static const String emergency = '/emergency/request';
-  
-  // AI Assistant
-  static const String aiChat = '/ai/chat';
-  static const String aiChatHistory = '/ai/chat/history';
-  
-  // Education
-  static const String education = '/education';
-  static const String searchEducation = '/education/search';
-  
-  // Community
-  static const String posts = '/community/posts';
-  static const String comments = '/community/comments';
-  static const String bookmarks = '/community/bookmarks';
-  
-  // Notifications
+  static String garageAvailabilitySlots(String garageId) =>
+      '/garages/availability/$garageId/slots';
   static const String notifications = '/notifications';
-  static const String notificationSettings = '/notifications/settings';
-  
-  // Reviews
-  static const String reviews = '/reviews';
-  static const String rateGarage = '/reviews/rate';
-  
-  // Private constructor to prevent instantiation
+  static String garageRatingSummary(String garageId) =>
+      '/garages/ratings/$garageId/summary';
+  static String garageReviews(String garageId) =>
+      '/garages/ratings/$garageId/reviews';
+
   ApiEndpoints._();
 }
-

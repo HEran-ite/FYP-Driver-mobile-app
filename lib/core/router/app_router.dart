@@ -2,6 +2,7 @@
 /// 
 /// This file contains the main routing configuration for the application.
 /// Routes are organized by feature and include authentication guards.
+library;
 
 // TODO: Uncomment when go_router package is added
 // import 'package:go_router/go_router.dart';

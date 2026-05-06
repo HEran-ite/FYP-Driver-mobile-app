@@ -1,6 +1,7 @@
 /// Border radius constants
 /// 
 /// All border radius values used in the application should be defined here.
+library;
 
 class BorderRadiusValues {
   // Small

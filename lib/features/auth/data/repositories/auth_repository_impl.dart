@@ -1,0 +1,149 @@
+library;
+
+import 'dart:convert';
+
+import '../../../../core/auth/jwt_expiry.dart';
+import '../../../ai/data/datasources/ai_chat_local_cache.dart';
+import '../../domain/entities/driver_user.dart';
+import '../../domain/repositories/auth_repository.dart';
+import '../datasources/auth_local_datasource.dart';
+import '../datasources/auth_remote_datasource.dart';
+import '../models/driver_response.dart';
+
+class AuthRepositoryImpl implements AuthRepository {
+  AuthRepositoryImpl({
+    required AuthRemoteDataSource remote,
+    required AuthLocalDataSource local,
+    AiChatLocalCache? aiChatLocalCache,
+  })  : _remote = remote,
+        _local = local,
+        _aiChatLocalCache = aiChatLocalCache;
+
+  final AuthRemoteDataSource _remote;
+  final AuthLocalDataSource _local;
+  final AiChatLocalCache? _aiChatLocalCache;
+
+  @override
+  Future<AuthResult> login({
+    required String phone,
+    required String password,
+  }) async {
+    await _aiChatLocalCache?.clear();
+    final response = await _remote.login(phone: phone, password: password);
+    await _local.saveToken(response.token);
+    final userJson = _userToJson(response.driver);
+    await _local.saveUser(userJson);
+    return AuthResult(token: response.token, user: response.driver.toEntity());
+  }
+
+  @override
+  Future<DriverUser> signup({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+    String? firebaseIdToken,
+  }) async {
+    final firebaseToken = firebaseIdToken?.trim();
+    if (firebaseToken != null && firebaseToken.isNotEmpty) {
+      await _aiChatLocalCache?.clear();
+      final result = await _remote.signupWithFirebase(
+        idToken: firebaseToken,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        password: password,
+      );
+      await _local.saveToken(result.token);
+      await _local.saveUser(_userToJson(result.driver));
+      return result.driver.toEntity();
+    }
+    await _remote.signup(
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      phone: phone,
+      password: password,
+    );
+    final result = await login(phone: phone, password: password);
+    return result.user;
+  }
+
+  @override
+  Future<void> logout() async {
+    try {
+      await _remote.logout();
+    } catch (_) {}
+    await _local.clear();
+    await _aiChatLocalCache?.clear();
+  }
+
+  @override
+  Future<String?> getToken() => _local.getToken();
+
+  @override
+  Future<DriverUser?> getCurrentUser() async {
+    final token = await _local.getToken();
+    if (isJwtExpired(token)) {
+      await _local.clear();
+      return null;
+    }
+    final json = await _local.getUserJson();
+    if (json == null) return null;
+    final map = _jsonToMap(json);
+    if (map == null) return null;
+    return DriverResponse.fromJson(map).toEntity();
+  }
+
+  @override
+  Future<void> updateProfile(DriverUser user) async {
+    try {
+      final updated = await _remote.updateProfile(
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+      );
+      await _local.saveUser(_userToJson(updated));
+    } catch (_) {
+      // If backend profile isn't created yet, attempt create then persist.
+      final created = await _remote.createProfile(
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+      );
+      await _local.saveUser(_userToJson(created));
+    }
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return _remote.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
+  String _userToJson(DriverResponse d) {
+    return jsonEncode({
+      'id': d.id,
+      'firstName': d.firstName,
+      'lastName': d.lastName,
+      'email': d.email,
+      'phone': d.phone,
+    });
+  }
+
+  Map<String, dynamic>? _jsonToMap(String jsonStr) {
+    try {
+      return Map<String, dynamic>.from(jsonDecode(jsonStr) as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+}
